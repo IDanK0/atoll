@@ -40,6 +40,7 @@ import dev.atoll.island.data.model.AdaptivePaddingResult
 import dev.atoll.island.data.model.CapsulePreset
 import dev.atoll.island.data.model.CapsuleScalingMode
 import dev.atoll.island.data.model.DeviceDisplayMetrics
+import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.LiveAlertConfig
 import dev.atoll.island.data.model.NotificationChannelMode
 import dev.atoll.island.data.model.NotificationTemplateStyle
@@ -49,6 +50,8 @@ import dev.atoll.island.data.model.PromotionDiagnostics
 import dev.atoll.island.data.model.SmallIconMode
 import dev.atoll.island.data.model.TitleMode
 import dev.atoll.island.domain.OnboardingCoordinator
+import dev.atoll.island.ui.card.AdvancedCardSection
+import dev.atoll.island.ui.card.ExpandedCardSection
 import dev.atoll.island.ui.components.AboutAndLicensesDialog
 import dev.atoll.island.ui.components.CardGap
 import dev.atoll.island.ui.components.CustomWidthCard
@@ -95,6 +98,7 @@ interface DashboardActions {
     fun setProgressIndeterminate(indeterminate: Boolean)
     fun setSmallIconMode(mode: SmallIconMode)
     fun setTitleMode(mode: TitleMode)
+    fun updateCard(transform: (ExpandedCardConfig) -> ExpandedCardConfig)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -171,6 +175,14 @@ private fun LazyListScope.simpleItems(
     } else {
         item(key = "scaling") { ScalingModeCard(config.scalingMode, actions::setScalingMode) }
     }
+    cardItems(config, actions)
+}
+
+private fun LazyListScope.cardItems(config: LiveAlertConfig, actions: DashboardActions) {
+    item(key = "cardHeader") { SectionHeader(stringResource(R.string.card_section)) }
+    item(key = "card") {
+        ExpandedCardSection(config, actions::updateCard)
+    }
 }
 
 private fun LazyListScope.advancedItems(
@@ -222,6 +234,8 @@ private fun LazyListScope.advancedItems(
             onTitleModeChange = actions::setTitleMode
         )
     }
+    item(key = "cardAdvanced") { AdvancedCardSection(config, diagnostics, actions::updateCard) }
+    cardItems(config, actions)
 }
 
 @Composable

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- radice FrameLayout: con un LinearLayout ColorOS taglia la scheda in basso -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UselessParent,ContentDescription,UseCompoundDrawables"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <Chronometer
+                    android:id="@+id/tm_chrono"
+                    style="@style/CardValue"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tm_static"
+                    style="@style/CardValue" />
+
+                <TextView
+                    android:id="@+id/tm_caption"
+                    style="@style/CardCaption" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/tm_btn_0"
+                style="@style/CardCircleButton"
+                android:background="@drawable/card_btn_circle_solid">
+
+                <ImageView
+                    android:id="@+id/tm_btn_0_icon"
+                    style="@style/CardCircleIcon" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/tm_btn_1"
+                style="@style/CardCircleButton">
+
+                <ImageView
+                    android:id="@+id/tm_btn_1_icon"
+                    style="@style/CardCircleIcon" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/tm_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="18dp"
+            android:max="1000"
+            android:progressDrawable="@drawable/card_progress" />
+    </LinearLayout>
+</FrameLayout>

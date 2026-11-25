@@ -74,7 +74,8 @@ data class LiveAlertConfig(
     val templateStyle: NotificationTemplateStyle = NotificationTemplateStyle.STANDARD,
     val progressIndeterminate: Boolean = false,
     val smallIconMode: SmallIconMode = SmallIconMode.TRANSPARENT,
-    val titleMode: TitleMode = TitleMode.BRAILLE_BLANK
+    val titleMode: TitleMode = TitleMode.BRAILLE_BLANK,
+    val card: ExpandedCardConfig = ExpandedCardConfig()
 ) {
     companion object {
         // capsula = max(floor, origin + unità * dpPerUnit), valori presi dal OnePlus 15
@@ -109,5 +110,6 @@ data class PromotionDiagnostics(
     val isServiceRunning: Boolean = false,
     val shownAsLiveAlert: Boolean = false,
     val activeNotificationFlags: Int = 0,
-    val shortCriticalTextLength: Int = 0
+    val shortCriticalTextLength: Int = 0,
+    val activeStyle: String = ""
 )

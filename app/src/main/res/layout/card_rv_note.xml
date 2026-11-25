@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- radice FrameLayout: con un LinearLayout ColorOS taglia la scheda in basso -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UselessParent,ContentDescription,UseCompoundDrawables"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/nt_photo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:adjustViewBounds="true"
+            android:maxWidth="132dp"
+            android:maxHeight="120dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/nt_title"
+                style="@style/CardValue"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/nt_body"
+                style="@style/CardCaption"
+                android:maxLines="5" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/nt_btn"
+            style="@style/CardCircleButton">
+
+            <ImageView
+                android:id="@+id/nt_btn_icon"
+                style="@style/CardCircleIcon"
+                android:src="@drawable/ic_cbtn_edit" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

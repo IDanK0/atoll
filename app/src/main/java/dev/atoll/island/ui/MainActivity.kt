@@ -37,6 +37,7 @@ import androidx.lifecycle.lifecycleScope
 import dev.atoll.island.R
 import dev.atoll.island.data.model.CapsulePreset
 import dev.atoll.island.data.model.CapsuleScalingMode
+import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.NotificationChannelMode
 import dev.atoll.island.data.model.NotificationTemplateStyle
 import dev.atoll.island.data.model.OnboardingStep
@@ -115,6 +116,7 @@ class MainActivity : ComponentActivity() {
         override fun setProgressIndeterminate(indeterminate: Boolean) = save { setProgressIndeterminate(indeterminate) }
         override fun setSmallIconMode(mode: SmallIconMode) = save { setSmallIconMode(mode) }
         override fun setTitleMode(mode: TitleMode) = save { setTitleMode(mode) }
+        override fun updateCard(transform: (ExpandedCardConfig) -> ExpandedCardConfig) = save { updateCard(transform) }
     }
 
     private val notificationPermissionLauncher = registerForActivityResult(

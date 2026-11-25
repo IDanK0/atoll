@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- radice FrameLayout: con un LinearLayout ColorOS taglia la scheda in basso -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UselessParent,ContentDescription,UseCompoundDrawables"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/cv_value"
+                        style="@style/CardValue" />
+
+                    <TextView
+                        android:id="@+id/cv_total"
+                        style="@style/CardTotal" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/cv_caption"
+                    style="@style/CardCaption"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/cv_btn_0"
+                style="@style/CardCircleButton">
+
+                <ImageView
+                    android:id="@+id/cv_btn_0_icon"
+                    style="@style/CardCircleIcon" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/cv_btn_1"
+                style="@style/CardCircleButton">
+
+                <ImageView
+                    android:id="@+id/cv_btn_1_icon"
+                    style="@style/CardCircleIcon" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cv_bar"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="18dp"
+            android:orientation="horizontal" />
+    </LinearLayout>
+</FrameLayout>

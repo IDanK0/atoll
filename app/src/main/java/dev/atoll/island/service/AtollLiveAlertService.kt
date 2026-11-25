@@ -1,8 +1,10 @@
 package dev.atoll.island.service
 
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.hardware.display.DisplayManager
@@ -14,16 +16,26 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Display
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import dev.atoll.island.BuildConfig
 import dev.atoll.island.R
 import dev.atoll.island.data.model.AdaptivePaddingResult
+import dev.atoll.island.data.model.CardAction
+import dev.atoll.island.data.model.CounterSource
 import dev.atoll.island.data.model.DeviceDisplayMetrics
+import dev.atoll.island.data.model.ExpandedCardMode
 import dev.atoll.island.data.model.LiveAlertConfig
 import dev.atoll.island.data.model.PromotionDiagnostics
+import dev.atoll.island.data.model.StatMetric
 import dev.atoll.island.data.prefs.LiveAlertPreferencesRepository
 import dev.atoll.island.domain.AndroidDisplayMetricsProvider
+import dev.atoll.island.domain.card.ActionSlots
+import dev.atoll.island.domain.card.CardContent
+import dev.atoll.island.domain.card.ExpandedCardContentResolver
+import dev.atoll.island.domain.card.TimerReducer
+import dev.atoll.island.service.card.TorchController
 import dev.atoll.island.ui.MainActivity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,6 +59,19 @@ class AtollLiveAlertService : LifecycleService() {
     private var verificationJob: Job? = null
     private var lastRecheckMs = 0L
     private var lastDisplayState: Int = Display.STATE_UNKNOWN
+    private var lastCardContent: CardContent? = null
+    private var batteryRegistered = false
+    private var tickRegistered = false
+    private var timerJob: Job? = null
+    private var timerEndScheduled = 0L
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = refreshCardIfChanged()
+    }
+
+    private val tickReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = refreshCardIfChanged()
+    }
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) = Unit
@@ -118,6 +143,12 @@ class AtollLiveAlertService : LifecycleService() {
                 calibrationText = intent.getStringExtra(EXTRA_SAMPLE)
                 val config = LiveAlertPreferencesRepository.getInstance(applicationContext).config.value
                 if (config.enabled) postOrUpdateForeground(config, force = true)
+            }
+            ACTION_REFRESH_CARD -> if (hasEnteredForeground) {
+                lifecycleScope.launch {
+                    val config = LiveAlertPreferencesRepository.getInstance(applicationContext).getLatestConfig()
+                    if (config.enabled) postOrUpdateForeground(config, force = true, scheduleVerification = false)
+                }
             }
             ACTION_STOP -> {
                 stopSelf()
@@ -198,6 +229,7 @@ class AtollLiveAlertService : LifecycleService() {
         closeCalibration(restoreNotification = false)
         verificationJob?.cancel()
         verificationJob = null
+        stopCardMonitors()
         displayManager?.unregisterDisplayListener(displayListener)
         _isRunning.value = false
         hasEnteredForeground = false
@@ -232,11 +264,14 @@ class AtollLiveAlertService : LifecycleService() {
         _displayMetrics.value = metrics
         _adaptiveResult.value = solvedResult
 
+        val cardContent = LiveAlertNotificationBuilder.resolveCard(this, config)
+        lastCardContent = cardContent
         val notification = LiveAlertNotificationBuilder.build(
             context = this,
             config = if (activeOverride != null) config.copy(debugVisibleMode = false) else config,
             solvedResult = solvedResult,
-            calibrationOverrideText = activeOverride
+            calibrationOverrideText = activeOverride,
+            cardContent = cardContent
         )
         if (!hasEnteredForeground) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -255,7 +290,79 @@ class AtollLiveAlertService : LifecycleService() {
         if (scheduleVerification) {
             scheduleRecheck()
         }
+        updateCardMonitors(config)
         refreshDiagnostics(this, config, metrics, solvedResult)
+    }
+
+    // batteria e minuti solo quando la scheda li mostra, così il consumo resta quasi zero
+    private fun updateCardMonitors(config: LiveAlertConfig) {
+        val card = config.card
+        val usesMetric = ExpandedCardContentResolver.usesMetricStyle(card, Build.VERSION.SDK_INT)
+        val wantBattery = config.enabled && card.mode == ExpandedCardMode.DEVICE_STATS
+        val wantTick = config.enabled && when (card.mode) {
+            ExpandedCardMode.DEVICE_STATS -> card.stats.any { it == StatMetric.DAY_PROGRESS || it == StatMetric.DATE_TIME }
+            ExpandedCardMode.PROGRESS_COUNTER -> card.counterSource == CounterSource.DAY
+            ExpandedCardMode.FOCUS_TIMER -> card.timer.isRunning && !usesMetric
+            else -> false
+        }
+        if (wantBattery != batteryRegistered) {
+            if (wantBattery) {
+                ContextCompat.registerReceiver(
+                    this, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED
+                )
+            } else {
+                runCatching { unregisterReceiver(batteryReceiver) }
+            }
+            batteryRegistered = wantBattery
+        }
+        if (wantTick != tickRegistered) {
+            if (wantTick) {
+                ContextCompat.registerReceiver(
+                    this, tickReceiver, IntentFilter(Intent.ACTION_TIME_TICK), ContextCompat.RECEIVER_NOT_EXPORTED
+                )
+            } else {
+                runCatching { unregisterReceiver(tickReceiver) }
+            }
+            tickRegistered = wantTick
+        }
+
+        val endAt = if (config.enabled && card.mode == ExpandedCardMode.FOCUS_TIMER && card.timer.isRunning) {
+            card.timer.endAtMs
+        } else {
+            0L
+        }
+        if (endAt != timerEndScheduled) {
+            timerJob?.cancel()
+            timerEndScheduled = endAt
+            if (endAt > 0L) {
+                timerJob = lifecycleScope.launch {
+                    delay((endAt - System.currentTimeMillis()).coerceAtLeast(0L))
+                    LiveAlertPreferencesRepository.getInstance(applicationContext).updateCard {
+                        it.copy(timer = TimerReducer.finishIfDue(it.timer, System.currentTimeMillis()))
+                    }
+                }
+            }
+        }
+        if (CardAction.ToggleFlashlight in ActionSlots.resolve(card)) TorchController.ensureRegistered(this)
+    }
+
+    private fun stopCardMonitors() {
+        if (batteryRegistered) runCatching { unregisterReceiver(batteryReceiver) }
+        if (tickRegistered) runCatching { unregisterReceiver(tickReceiver) }
+        batteryRegistered = false
+        tickRegistered = false
+        timerJob?.cancel()
+        timerJob = null
+        timerEndScheduled = 0L
+    }
+
+    private fun refreshCardIfChanged() {
+        if (!hasEnteredForeground) return
+        val config = LiveAlertPreferencesRepository.getInstance(applicationContext).config.value
+        if (!config.enabled) return
+        if (LiveAlertNotificationBuilder.resolveCard(this, config) != lastCardContent) {
+            postOrUpdateForeground(config, force = true, scheduleVerification = false)
+        }
     }
 
     private fun scheduleRecheck() {
@@ -307,6 +414,7 @@ class AtollLiveAlertService : LifecycleService() {
         private const val ACTION_START_CALIBRATION = "dev.atoll.island.action.START_CALIBRATION"
         private const val ACTION_STOP_CALIBRATION = "dev.atoll.island.action.STOP_CALIBRATION"
         private const val ACTION_DEBUG_SAMPLE = "dev.atoll.island.action.DEBUG_SAMPLE"
+        private const val ACTION_REFRESH_CARD = "dev.atoll.island.action.REFRESH_CARD"
         private const val EXTRA_SAMPLE = "sample"
         private val VERIFICATION_DELAYS_MS = longArrayOf(350L, 1_200L, 9_500L)
         private const val RECHECK_INTERVAL_MS = 30_000L
@@ -347,6 +455,13 @@ class AtollLiveAlertService : LifecycleService() {
                     .setAction(ACTION_DEBUG_SAMPLE)
                     .putExtra(EXTRA_SAMPLE, text)
             )
+        }
+
+        fun refreshCard(context: Context) {
+            if (!isRunning.value) return
+            runCatching {
+                context.startService(Intent(context, AtollLiveAlertService::class.java).setAction(ACTION_REFRESH_CARD))
+            }
         }
 
         fun start(context: Context) {

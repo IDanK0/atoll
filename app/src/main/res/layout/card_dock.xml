@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- radice FrameLayout: con un LinearLayout ColorOS taglia la scheda in basso -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UselessParent,ContentDescription,UseCompoundDrawables"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/dock_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFFFF"
+            android:textSize="18sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:id="@+id/dock_slot_0"
+                style="@style/CardDockSlot">
+
+                <ImageView
+                    android:id="@+id/dock_icon_0"
+                    style="@style/CardDockIcon" />
+
+                <TextView
+                    android:id="@+id/dock_label_0"
+                    style="@style/CardDockLabel" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/dock_slot_1"
+                style="@style/CardDockSlot">
+
+                <ImageView
+                    android:id="@+id/dock_icon_1"
+                    style="@style/CardDockIcon" />
+
+                <TextView
+                    android:id="@+id/dock_label_1"
+                    style="@style/CardDockLabel" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/dock_slot_2"
+                style="@style/CardDockSlot">
+
+                <ImageView
+                    android:id="@+id/dock_icon_2"
+                    style="@style/CardDockIcon" />
+
+                <TextView
+                    android:id="@+id/dock_label_2"
+                    style="@style/CardDockLabel" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

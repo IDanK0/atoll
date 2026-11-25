@@ -13,6 +13,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dev.atoll.island.data.model.AppUiPreferences
 import dev.atoll.island.data.model.CapsulePreset
 import dev.atoll.island.data.model.CapsuleScalingMode
+import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.LiveAlertConfig
 import dev.atoll.island.data.model.NotificationChannelMode
 import dev.atoll.island.data.model.NotificationTemplateStyle
@@ -221,6 +222,15 @@ class LiveAlertPreferencesRepository private constructor(context: Context) {
         dataStore.edit { it[KEY_TITLE_MODE] = mode.name }
     }
 
+    suspend fun updateCard(transform: (ExpandedCardConfig) -> ExpandedCardConfig): ExpandedCardConfig {
+        var updated = ExpandedCardConfig()
+        dataStore.edit { prefs ->
+            updated = transform(ExpandedCardPreferences.read(prefs))
+            ExpandedCardPreferences.write(prefs, updated)
+        }
+        return updated
+    }
+
     suspend fun setHasCompletedOnboarding(completed: Boolean) {
         dataStore.edit { it[KEY_HAS_COMPLETED_ONBOARDING] = completed }
     }
@@ -278,7 +288,8 @@ class LiveAlertPreferencesRepository private constructor(context: Context) {
             templateStyle = NotificationTemplateStyle.fromName(this[KEY_TEMPLATE_STYLE]),
             progressIndeterminate = this[KEY_PROGRESS_INDETERMINATE] ?: false,
             smallIconMode = SmallIconMode.fromName(this[KEY_SMALL_ICON_MODE]),
-            titleMode = TitleMode.fromName(this[KEY_TITLE_MODE])
+            titleMode = TitleMode.fromName(this[KEY_TITLE_MODE]),
+            card = ExpandedCardPreferences.read(this)
         )
     }
 

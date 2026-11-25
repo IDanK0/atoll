@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- solo la cartella della foto della nota, da aprire nel visualizzatore -->
+<paths>
+    <files-path
+        name="card"
+        path="card/" />
+</paths>

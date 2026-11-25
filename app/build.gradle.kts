@@ -28,6 +28,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // si installa accanto alla release firmata
+            applicationIdSuffix = ".debug"
         }
     }
 

@@ -7,6 +7,32 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- app da aprire dalla scheda e pacchetti di icone da usare al posto delle icone originali -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="org.adw.launcher.THEMES" />
+        </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.gau.go.launcherex.theme" />
+        </intent>
+        <intent>
+            <action android:name="com.anddoes.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.teslacoilsw.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="ginlemon.smartlauncher.THEMES" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -35,6 +61,28 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-initiated persistent Live Update notification for native status bar capsule" />
         </service>
+
+        <receiver
+            android:name=".service.card.AtollCardActionReceiver"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.note.NoteEditActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Atoll.Translucent"
+            android:windowSoftInputMode="adjustResize" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/card_files" />
+        </provider>
 
         <service
             android:name=".service.AtollTileService"

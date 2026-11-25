@@ -3,9 +3,7 @@ package dev.atoll.island.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
@@ -15,6 +13,7 @@ import androidx.core.os.BundleCompat
 import dev.atoll.island.R
 import dev.atoll.island.data.model.AdaptivePaddingResult
 import dev.atoll.island.data.model.DeviceDisplayMetrics
+import dev.atoll.island.data.model.ExpandedCardMode
 import dev.atoll.island.data.model.LiveAlertConfig
 import dev.atoll.island.data.model.NotificationChannelMode
 import dev.atoll.island.data.model.NotificationTemplateStyle
@@ -23,7 +22,9 @@ import dev.atoll.island.data.model.SmallIconMode
 import dev.atoll.island.domain.AdaptiveCapsuleSolver
 import dev.atoll.island.domain.AndroidDisplayMetricsProvider
 import dev.atoll.island.domain.CapsulePaddingGenerator
-import dev.atoll.island.ui.MainActivity
+import dev.atoll.island.domain.card.CardContent
+import dev.atoll.island.service.card.CardNotificationDecorator
+import dev.atoll.island.service.card.ColorOsCardDecorator
 
 object LiveAlertNotificationBuilder {
 
@@ -31,6 +32,10 @@ object LiveAlertNotificationBuilder {
     internal const val EXTRA_OPLUS_SMALL_ICON = "oplus_small_icon"
     internal const val EXTRA_OPLUS_SMALL_ICON_USE_APP_ICON = "oplus_smallicon_use_app_icon"
     private const val FLAG_PROMOTED_ONGOING_FALLBACK = 0x00040000
+
+    // solo le build debug lo impostano, per provare extras di ColorOS da adb
+    @Volatile
+    internal var debugHook: ((Context, NotificationCompat.Builder) -> Unit)? = null
 
     private val flagPromotedOngoingMask: Int by lazy {
         runCatching {
@@ -84,23 +89,31 @@ object LiveAlertNotificationBuilder {
         return metrics to result
     }
 
+    fun resolveCard(context: Context, config: LiveAlertConfig): CardContent =
+        CardNotificationDecorator.resolve(
+            context,
+            config,
+            CapsulePaddingGenerator.titleFor(config.titleMode),
+            CapsulePaddingGenerator.contentTextFor(config.titleMode)
+        )
+
+    fun activeStyleName(context: Context, config: LiveAlertConfig): String =
+        if (config.card.mode == ExpandedCardMode.MINIMAL) {
+            if (config.templateStyle == NotificationTemplateStyle.PROGRESS_STYLE) "ProgressStyle" else "Standard"
+        } else {
+            CardNotificationDecorator.styleName(resolveCard(context, config).style).let {
+                if (config.card.useColorOsLayouts) "ColorOS + $it" else it
+            }
+        }
+
     fun build(
         context: Context,
         config: LiveAlertConfig,
         solvedResult: AdaptivePaddingResult = solveForDevice(context, config).second,
-        calibrationOverrideText: String? = null
+        calibrationOverrideText: String? = null,
+        cardContent: CardContent = resolveCard(context, config)
     ): Notification {
         ensureChannels(context)
-
-        val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val contentPendingIntent = PendingIntent.getActivity(
-            context,
-            100,
-            openAppIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
 
         val iconRes = expectedSmallIconResId(config.smallIconMode)
 
@@ -129,13 +142,22 @@ object LiveAlertNotificationBuilder {
             .setSilent(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentIntent(contentPendingIntent)
 
         if (paddingText.isNotEmpty()) {
             builder.setShortCriticalText(paddingText)
         }
 
-        if (config.templateStyle == NotificationTemplateStyle.PROGRESS_STYLE) {
+        // la scheda cambia solo il contenuto espanso, mai la pillola
+        CardNotificationDecorator.apply(context, builder, config, cardContent)
+        // la capsula di ColorOS riusa lo stesso testo, così la pillola resta larga uguale; in calibrazione si misura quella nativa
+        if (calibrationOverrideText == null) {
+            ColorOsCardDecorator.apply(context, builder, config, paddingText)
+        }
+        debugHook?.invoke(context, builder)
+
+        if (config.card.mode == ExpandedCardMode.MINIMAL &&
+            config.templateStyle == NotificationTemplateStyle.PROGRESS_STYLE
+        ) {
             val progressStyle = NotificationCompat.ProgressStyle()
                 .setStyledByProgress(true)
             if (config.progressIndeterminate) {
@@ -203,7 +225,8 @@ object LiveAlertNotificationBuilder {
             isServiceRunning = isServiceRunning,
             shownAsLiveAlert = shownAsLiveAlert,
             activeNotificationFlags = activeFlags,
-            shortCriticalTextLength = shortLen
+            shortCriticalTextLength = shortLen,
+            activeStyle = activeStyleName(context, config)
         )
     }
 
@@ -225,6 +248,8 @@ object LiveAlertNotificationBuilder {
     ): Boolean {
         if (notification == null) return true
         if (requirePromotion && !isPromoted(notification)) return true
+        // con MetricStyle l'icona dell'app la mette ColorOS ogni volta: ripubblicare non serve
+        if (notification.extras.getString(Notification.EXTRA_TEMPLATE)?.endsWith("MetricStyle") == true) return false
         val expectedResId = expectedSmallIconResId(config.smallIconMode)
         val oplusSmallIcon = runCatching {
             BundleCompat.getParcelable(notification.extras, EXTRA_OPLUS_SMALL_ICON, Icon::class.java)
