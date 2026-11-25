@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Atoll</string>
+    <string name="qs_tile_label">Atoll</string>
+    <string name="qs_tile_off">Off</string>
+    <string name="qs_tile_setup_needed">Allow notifications</string>
+
+    <string name="channel_low_name">Pill (low importance)</string>
+    <string name="channel_low_desc">Silent notification that keeps the Live Alert pill on screen</string>
+    <string name="channel_default_name">Pill (default importance)</string>
+    <string name="channel_default_desc">Silent notification with default importance, to compare how ColorOS promotes it</string>
+
+    <string name="action_close">Close</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="cd_more_options">More options</string>
+    <string name="menu_setup_guide">Setup guide</string>
+    <string name="about_card_button">About</string>
+    <string name="mode_simple">Simple</string>
+    <string name="mode_advanced">Advanced</string>
+
+    <!-- Simple mode -->
+    <string name="simple_status_active">Pill on</string>
+    <string name="simple_status_off">Pill off</string>
+    <string name="simple_smallest_supported_note">Smallest size this phone can show</string>
+    <string name="simple_calibrate_cta">Calibrate size</string>
+    <string name="simple_calibrate_done_cta">Calibrate again</string>
+    <string name="simple_styles_title">Size</string>
+    <string name="simple_scaling_title">Match iPhone sizes by</string>
+    <string name="scaling_simple_proportional">Screen share</string>
+    <string name="scaling_simple_physical">Real size</string>
+    <string name="scaling_simple_proportional_help">The pill takes the same share of your screen width as on the iPhone.</string>
+    <string name="scaling_simple_physical_help">The pill has the same width in millimeters as on the iPhone.</string>
+    <string name="simple_size_title">Custom width</string>
+    <string name="simple_size_help">The pill updates when you lift your finger.</string>
+    <string name="simple_fix_title">A permission was turned off</string>
+    <string name="simple_fix_body_notif">Atoll needs notifications to show the pill.</string>
+    <string name="simple_fix_body_live_alerts">Atoll needs Live Alerts to show the pill.</string>
+    <string name="simple_fix_cta">Fix</string>
+    <string name="size_manual_text">Manual text</string>
+    <string name="size_summary_minimum">%1$s · at this phone’s minimum</string>
+    <string name="size_summary_maximum">%1$s · at this phone’s maximum</string>
+
+    <string name="preset_simple_18_pro_max">iPhone 18 Pro Max</string>
+    <string name="preset_simple_18_pro">iPhone 18 Pro</string>
+    <string name="preset_simple_16_17_pro_max">iPhone 16 / 17 Pro Max</string>
+    <string name="preset_simple_14_16_plus_max">iPhone 14 / 15 Pro Max, 15 / 16 Plus</string>
+    <string name="preset_simple_air">iPhone Air</string>
+    <string name="preset_simple_16_pro_17">iPhone 16 Pro / 17 / 17 Pro</string>
+    <string name="preset_simple_14_pro_16">iPhone 14 Pro / 15 / 15 Pro / 16</string>
+    <string name="preset_simple_custom">Custom</string>
+    <string name="preset_sub_custom">Your width</string>
+    <string name="preset_sub_minimum">Phone minimum</string>
+
+    <!-- Advanced mode -->
+    <string name="master_title_active">Pill on</string>
+    <string name="master_title_paused">Pill off</string>
+    <string name="master_subtitle">%1$s · %2$s dp expected</string>
+
+    <string name="diag_title">Live Alert checks</string>
+    <string name="diag_refresh">Refresh</string>
+    <string name="diag_api">Android 16 or later</string>
+    <string name="diag_api_value">API %1$d</string>
+    <string name="diag_notif_perm">Notifications</string>
+    <string name="diag_promoted_perm">Live Alerts permission</string>
+    <string name="diag_eligible">Notification can be promoted</string>
+    <string name="diag_systemui">Shown as a Live Alert</string>
+    <string name="diag_systemui_idle">Pill off</string>
+    <string name="diag_on">On</string>
+    <string name="diag_off">Off</string>
+    <string name="diag_yes">Yes</string>
+    <string name="diag_no">No</string>
+    <string name="diag_flags_meta">Notification flags 0x%1$08X · text length %2$d</string>
+    <string name="btn_enable_live_alerts">Live Alerts settings</string>
+    <string name="btn_battery_autolaunch">Battery and auto-launch settings</string>
+
+    <string name="presets_title">iPhone presets</string>
+    <string name="presets_help">Width in points, share of the iPhone screen and real width. On the right, the target on this phone; red when it is below the smallest pill this phone can show.</string>
+
+    <string name="measure_title">On this phone</string>
+    <string name="measure_screen">Screen</string>
+    <string name="measure_target">Target</string>
+    <string name="measure_expected">Expected pill</string>
+    <string name="measure_text">Text sent</string>
+    <string name="measure_text_empty">Nothing</string>
+    <string name="measure_model_value">At least %1$.1f dp, otherwise %2$.1f dp + %3$.2f dp per U+2800</string>
+    <string name="measure_model_calibrated">Pill model (calibrated)</string>
+    <string name="measure_model_default">Pill model (OnePlus 15 default)</string>
+    <string name="measure_clamped_min">The target is narrower than the smallest pill this phone can show.</string>
+    <string name="measure_clamped_max">The target needs more characters than the limit (%1$d).</string>
+
+    <string name="lab_title">Sizing model</string>
+    <string name="lab_reset">Reset</string>
+    <string name="scaling_adv_proportional">Screen share</string>
+    <string name="scaling_adv_physical">Real size</string>
+    <string name="cal_floor_label">Smallest pill</string>
+    <string name="cal_floor_help">ColorOS never draws the pill narrower than this.</string>
+    <string name="cal_origin_label">Pill without text</string>
+    <string name="cal_origin_help">Where the growth line starts. Below the smallest pill it has no visible effect.</string>
+    <string name="cal_dp_per_unit_label">Growth per U+2800</string>
+    <string name="cal_phys_scale_label">Real size correction</string>
+    <string name="cal_phys_scale_help">Use it if the real-size mode looks off when you hold an iPhone next to this phone.</string>
+    <string name="cal_max_chars_label">Characters available</string>
+    <string name="lab_length_hint">Android shows up to 7 characters of a Live Alert text.</string>
+    <string name="cal_braille_anchor_title">Never send an empty-looking text</string>
+    <string name="cal_braille_anchor_sub">At the minimum size, send U+2800 instead of U+200B.</string>
+    <string name="cal_visual_launch_adv">Calibrate on the Home screen</string>
+
+    <string name="lab_manual_title">Manual text</string>
+    <string name="lab_manual_switch">Send this text instead of the preset</string>
+    <string name="lab_manual_sub">For testing how ColorOS sizes each character.</string>
+    <string name="lab_manual_length">Characters</string>
+    <string name="lab_glyph_label">Character</string>
+    <string name="lab_debug_title">Show the characters</string>
+    <string name="lab_debug_sub">Replaces the invisible characters with a visible one, to count what ColorOS shows.</string>
+    <string name="lab_preview_stats">Length %1$d · after trim() %2$d</string>
+
+    <string name="notif_lab_title">Notification</string>
+    <string name="notif_channel_label">Channel</string>
+    <string name="notif_channel_low">Low</string>
+    <string name="notif_channel_default">Default</string>
+    <string name="notif_style_label">Template</string>
+    <string name="notif_style_standard">Standard</string>
+    <string name="notif_style_progress">Progress</string>
+    <string name="notif_progress_indet">Indeterminate progress</string>
+    <string name="notif_progress_indet_sub">Instead of a full bar</string>
+    <string name="notif_icon_label">Status bar icon</string>
+    <string name="notif_icon_transparent">None</string>
+    <string name="notif_icon_dot">Dot</string>
+    <string name="notif_icon_capsule">Pill</string>
+    <string name="notif_title_label">Title</string>
+    <string name="notif_title_blank">Invisible</string>
+    <string name="notif_title_text">“Atoll”</string>
+
+    <!-- About -->
+    <string name="about_meta_version">Version %1$s (%2$d)</string>
+    <string name="about_privacy_title">Privacy</string>
+    <string name="about_privacy_body">Atoll uses Android Live Updates for the pill. The optional permission to draw over other apps is only for the calibration ruler. Atoll does not use accessibility, read other apps’ notifications, or access the internet. Android may include your settings in device backups.</string>
+    <string name="about_credits_title">Trademarks</string>
+    <string name="about_credits_body">iPhone and Dynamic Island are trademarks of Apple Inc. and are used only to name size references. ColorOS belongs to OPPO. Atoll is not affiliated with either company.</string>
+    <string name="about_show_licenses">Show open source licenses</string>
+    <string name="about_hide_licenses">Hide open source licenses</string>
+
+    <!-- Setup guide -->
+    <string name="cd_wizard_back">Back</string>
+    <string name="wizard_status_enabled">Done</string>
+    <string name="wizard_next">Next</string>
+    <string name="wizard_continue_anyway">Continue anyway</string>
+    <string name="wizard_skip">Skip</string>
+    <string name="wizard_welcome_title">Welcome to Atoll</string>
+    <string name="wizard_welcome_body">Atoll uses your phone’s Live Alerts to show a pill around the front camera.</string>
+    <string name="wizard_welcome_cta">Set up Atoll</string>
+    <string name="wizard_notif_title">Allow notifications</string>
+    <string name="wizard_notif_body">The pill is a silent notification. Atoll can’t show it without this permission.</string>
+    <string name="wizard_notif_cta">Allow notifications</string>
+    <string name="wizard_live_alerts_title">Turn on Live Alerts</string>
+    <string name="wizard_live_alerts_body">On the next screen, turn on this switch.</string>
+    <string name="wizard_live_alerts_hint_toggle">Live Alerts</string>
+    <string name="wizard_live_alerts_cta">Open Live Alerts settings</string>
+    <string name="wizard_keep_alive_title">Let Atoll run in the background</string>
+    <string name="wizard_keep_alive_body">In App info, turn on “Allow background activity” and “Auto-launch” if they’re available. They help keep the pill visible after you leave Atoll.</string>
+    <string name="wizard_keep_alive_cta">Open App info</string>
+    <string name="wizard_done_title">Ready</string>
+    <string name="wizard_done_body">Turn on the pill. You can change its size at any time.</string>
+    <string name="wizard_done_cta">Turn on the pill</string>
+
+    <!-- Calibration -->
+    <string name="cal_visual_width_badge">%1$d dp</string>
+    <string name="cal_visual_step_badge">Step %1$d of %2$d</string>
+    <string name="cal_visual_step1_title">Measure the smallest pill</string>
+    <string name="cal_visual_step1_body">Widen the ruler until both ends just peek out. Then tap −1 once.</string>
+    <string name="cal_visual_step2_title">Measure the medium pill</string>
+    <string name="cal_visual_step3_title">Measure the wide pill</string>
+    <string name="cal_visual_step2_body">The pill just got wider. Match the ruler to it again: stop when both ends disappear behind it.</string>
+    <string name="cal_visual_save">Save measurements</string>
+    <string name="cal_visual_finish">Done</string>
+    <string name="cal_float_permission_title">Measure the pill on Home</string>
+    <string name="cal_float_permission_body">Allow Atoll to display over other apps so you can see the ruler and the real pill together on the Home screen. Atoll only uses this permission during calibration.</string>
+    <string name="cal_float_permission_open">Open settings</string>
+    <string name="cal_float_start_failed">Couldn’t open the ruler. Check the overlay permission and try again.</string>
+    <string name="cal_float_return_manual">Calibration is closed. Open Atoll from Home.</string>
+    <string name="cal_float_android_required">Calibration needs Live Updates on Android 16 or later.</string>
+    <string name="cal_float_notifications_required">Allow Atoll notifications before measuring the pill.</string>
+    <string name="cal_float_live_alerts_required">Allow Live Alerts for Atoll before measuring the pill.</string>
+    <string name="cal_float_portrait">Hold the phone upright to calibrate.</string>
+    <string name="cal_float_move_panel">Move panel</string>
+    <string name="cal_float_ruler_width">Ruler width</string>
+    <string name="cal_float_delta">%1$+d</string>
+    <string name="cal_float_narrow">Narrow by %1$d dp</string>
+    <string name="cal_float_widen">Widen by %1$d dp</string>
+    <string name="cal_float_up">Move ruler up</string>
+    <string name="cal_float_down">Move ruler down</string>
+    <string name="cal_float_options">Ruler options</string>
+    <string name="cal_float_options_back">Back to calibration</string>
+    <string name="cal_float_color_label">Ruler color</string>
+    <string name="cal_float_green">Green</string>
+    <string name="cal_float_magenta">Magenta</string>
+    <string name="cal_float_cyan">Cyan</string>
+    <string name="cal_float_below">Below pill</string>
+    <string name="cal_float_below_help">Line up the ends of the ruler with the edges of the pill above it.</string>
+    <string name="cal_float_vertical_position">Ruler height</string>
+    <string name="cal_float_try_presets">Check a preset</string>
+    <string name="cal_float_verify_body">Measurements saved. Choose a preset: the pill changes, and the ruler shows the width it should have.</string>
+    <string name="cal_float_target_width">Target: %1$.1f dp</string>
+    <string name="cal_float_select_preset">Manual text is on. Choose a preset to check its width.</string>
+    <string name="cal_float_not_wider">Each pill has to be wider than the one before. If the pill hasn’t changed yet, wait a moment.</string>
+    <string name="cal_float_min_out_of_range">The smallest pill can’t be wider than 160 dp. Check that you matched the small pill.</string>
+    <string name="cal_float_max_size">This preset is wider than this phone can show. The ruler shows the target; the pill stops at its maximum.</string>
+    <string name="cal_float_save_failed">Couldn’t save the measurement. Try again.</string>
+    <string name="cal_float_saving">Saving…</string>
+</resources>

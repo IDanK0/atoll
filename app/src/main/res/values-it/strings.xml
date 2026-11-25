@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Atoll</string>
+    <string name="qs_tile_label">Atoll</string>
+    <string name="qs_tile_off">Spenta</string>
+    <string name="qs_tile_setup_needed">Consenti le notifiche</string>
+
+    <string name="channel_low_name">Pillola (importanza bassa)</string>
+    <string name="channel_low_desc">Notifica silenziosa che tiene la pillola degli avvisi in tempo reale sullo schermo</string>
+    <string name="channel_default_name">Pillola (importanza normale)</string>
+    <string name="channel_default_desc">Notifica silenziosa con importanza normale, per confrontare come la promuove ColorOS</string>
+
+    <string name="action_close">Chiudi</string>
+    <string name="action_cancel">Annulla</string>
+    <string name="cd_more_options">Altre opzioni</string>
+    <string name="menu_setup_guide">Configurazione guidata</string>
+    <string name="about_card_button">Informazioni</string>
+    <string name="mode_simple">Semplice</string>
+    <string name="mode_advanced">Avanzata</string>
+
+    <!-- Modalità semplice -->
+    <string name="simple_status_active">Pillola accesa</string>
+    <string name="simple_status_off">Pillola spenta</string>
+    <string name="simple_smallest_supported_note">La misura più piccola che il telefono può mostrare</string>
+    <string name="simple_calibrate_cta">Calibra le dimensioni</string>
+    <string name="simple_calibrate_done_cta">Calibra di nuovo</string>
+    <string name="simple_styles_title">Misura</string>
+    <string name="simple_scaling_title">Riprodurre le misure iPhone in base a</string>
+    <string name="scaling_simple_proportional">Proporzione</string>
+    <string name="scaling_simple_physical">Misura reale</string>
+    <string name="scaling_simple_proportional_help">La pillola occupa la stessa parte della larghezza dello schermo che occupa sull’iPhone.</string>
+    <string name="scaling_simple_physical_help">La pillola è larga gli stessi millimetri che misura sull’iPhone.</string>
+    <string name="simple_size_title">Larghezza personalizzata</string>
+    <string name="simple_size_help">La pillola cambia quando sollevi il dito.</string>
+    <string name="simple_fix_title">Un permesso è stato disattivato</string>
+    <string name="simple_fix_body_notif">Atoll ha bisogno delle notifiche per mostrare la pillola.</string>
+    <string name="simple_fix_body_live_alerts">Atoll ha bisogno degli avvisi in tempo reale per mostrare la pillola.</string>
+    <string name="simple_fix_cta">Risolvi</string>
+    <string name="size_manual_text">Testo manuale</string>
+    <string name="size_summary_minimum">%1$s · al minimo di questo telefono</string>
+    <string name="size_summary_maximum">%1$s · al massimo di questo telefono</string>
+
+    <string name="preset_simple_18_pro_max">iPhone 18 Pro Max</string>
+    <string name="preset_simple_18_pro">iPhone 18 Pro</string>
+    <string name="preset_simple_16_17_pro_max">iPhone 16 / 17 Pro Max</string>
+    <string name="preset_simple_14_16_plus_max">iPhone 14 / 15 Pro Max, 15 / 16 Plus</string>
+    <string name="preset_simple_air">iPhone Air</string>
+    <string name="preset_simple_16_pro_17">iPhone 16 Pro / 17 / 17 Pro</string>
+    <string name="preset_simple_14_pro_16">iPhone 14 Pro / 15 / 15 Pro / 16</string>
+    <string name="preset_simple_custom">Personalizzata</string>
+    <string name="preset_sub_custom">Scegli tu la larghezza</string>
+    <string name="preset_sub_minimum">Minimo del telefono</string>
+
+    <!-- Modalità avanzata -->
+    <string name="master_title_active">Pillola accesa</string>
+    <string name="master_title_paused">Pillola spenta</string>
+    <string name="master_subtitle">%1$s · %2$s dp previsti</string>
+
+    <string name="diag_title">Controlli degli avvisi in tempo reale</string>
+    <string name="diag_refresh">Aggiorna</string>
+    <string name="diag_api">Android 16 o successivo</string>
+    <string name="diag_api_value">API %1$d</string>
+    <string name="diag_notif_perm">Notifiche</string>
+    <string name="diag_promoted_perm">Permesso avvisi in tempo reale</string>
+    <string name="diag_eligible">La notifica si può promuovere</string>
+    <string name="diag_systemui">Mostrata come avviso in tempo reale</string>
+    <string name="diag_systemui_idle">Pillola spenta</string>
+    <string name="diag_on">Attivo</string>
+    <string name="diag_off">Disattivato</string>
+    <string name="diag_yes">Sì</string>
+    <string name="diag_no">No</string>
+    <string name="diag_flags_meta">Flag della notifica 0x%1$08X · lunghezza del testo %2$d</string>
+    <string name="btn_enable_live_alerts">Impostazioni degli avvisi in tempo reale</string>
+    <string name="btn_battery_autolaunch">Impostazioni di batteria e avvio automatico</string>
+
+    <string name="presets_title">Misure iPhone</string>
+    <string name="presets_help">Larghezza in punti, parte dello schermo dell’iPhone e larghezza reale. A destra, il riferimento su questo telefono; in rosso quando è sotto la pillola più piccola che il telefono può mostrare.</string>
+
+    <string name="measure_title">Su questo telefono</string>
+    <string name="measure_screen">Schermo</string>
+    <string name="measure_target">Riferimento</string>
+    <string name="measure_expected">Pillola prevista</string>
+    <string name="measure_text">Testo inviato</string>
+    <string name="measure_text_empty">Niente</string>
+    <string name="measure_model_value">Almeno %1$.1f dp, altrimenti %2$.1f dp + %3$.2f dp per U+2800</string>
+    <string name="measure_model_calibrated">Modello della pillola (calibrato)</string>
+    <string name="measure_model_default">Modello della pillola (predefinito OnePlus 15)</string>
+    <string name="measure_clamped_min">Il riferimento è più stretto della pillola più piccola che il telefono può mostrare.</string>
+    <string name="measure_clamped_max">Il riferimento richiede più caratteri del limite (%1$d).</string>
+
+    <string name="lab_title">Modello di dimensionamento</string>
+    <string name="lab_reset">Ripristina</string>
+    <string name="scaling_adv_proportional">Proporzione</string>
+    <string name="scaling_adv_physical">Misura reale</string>
+    <string name="cal_floor_label">Pillola più piccola</string>
+    <string name="cal_floor_help">ColorOS non disegna mai la pillola più stretta di così.</string>
+    <string name="cal_origin_label">Pillola senza testo</string>
+    <string name="cal_origin_help">Punto di partenza della crescita. Sotto la pillola più piccola non ha effetti visibili.</string>
+    <string name="cal_dp_per_unit_label">Crescita per U+2800</string>
+    <string name="cal_phys_scale_label">Correzione della misura reale</string>
+    <string name="cal_phys_scale_help">Usala se, con un iPhone accanto a questo telefono, la misura reale non corrisponde.</string>
+    <string name="cal_max_chars_label">Caratteri disponibili</string>
+    <string name="lab_length_hint">Android mostra fino a 7 caratteri del testo di un avviso in tempo reale.</string>
+    <string name="cal_braille_anchor_title">Non inviare mai un testo che sembra vuoto</string>
+    <string name="cal_braille_anchor_sub">Alla misura minima, invia U+2800 invece di U+200B.</string>
+    <string name="cal_visual_launch_adv">Calibra dalla schermata Home</string>
+
+    <string name="lab_manual_title">Testo manuale</string>
+    <string name="lab_manual_switch">Invia questo testo al posto della misura</string>
+    <string name="lab_manual_sub">Per provare come ColorOS dimensiona ogni carattere.</string>
+    <string name="lab_manual_length">Caratteri</string>
+    <string name="lab_glyph_label">Carattere</string>
+    <string name="lab_debug_title">Mostra i caratteri</string>
+    <string name="lab_debug_sub">Sostituisce i caratteri invisibili con uno visibile, per contare quelli che ColorOS mostra.</string>
+    <string name="lab_preview_stats">Lunghezza %1$d · dopo trim() %2$d</string>
+
+    <string name="notif_lab_title">Notifica</string>
+    <string name="notif_channel_label">Canale</string>
+    <string name="notif_channel_low">Bassa</string>
+    <string name="notif_channel_default">Normale</string>
+    <string name="notif_style_label">Modello</string>
+    <string name="notif_style_standard">Standard</string>
+    <string name="notif_style_progress">Avanzamento</string>
+    <string name="notif_progress_indet">Avanzamento indeterminato</string>
+    <string name="notif_progress_indet_sub">Al posto della barra piena</string>
+    <string name="notif_icon_label">Icona nella barra di stato</string>
+    <string name="notif_icon_transparent">Nessuna</string>
+    <string name="notif_icon_dot">Punto</string>
+    <string name="notif_icon_capsule">Pillola</string>
+    <string name="notif_title_label">Titolo</string>
+    <string name="notif_title_blank">Invisibile</string>
+    <string name="notif_title_text">«Atoll»</string>
+
+    <!-- Informazioni -->
+    <string name="about_meta_version">Versione %1$s (%2$d)</string>
+    <string name="about_privacy_title">Privacy</string>
+    <string name="about_privacy_body">Atoll usa gli aggiornamenti in tempo reale di Android per mostrare la pillola. Il permesso facoltativo di apparire sopra le altre app serve solo per il righello di calibrazione. Atoll non usa i servizi di accessibilità, non legge le notifiche di altre app e non accede a Internet. Android può includere le impostazioni nel backup del dispositivo.</string>
+    <string name="about_credits_title">Marchi</string>
+    <string name="about_credits_body">iPhone e Dynamic Island sono marchi di Apple Inc. e servono solo a indicare le misure di riferimento. ColorOS appartiene a OPPO. Atoll non è collegata a nessuna delle due aziende.</string>
+    <string name="about_show_licenses">Mostra le licenze open source</string>
+    <string name="about_hide_licenses">Nascondi le licenze open source</string>
+
+    <!-- Configurazione guidata -->
+    <string name="cd_wizard_back">Indietro</string>
+    <string name="wizard_status_enabled">Fatto</string>
+    <string name="wizard_next">Avanti</string>
+    <string name="wizard_continue_anyway">Continua comunque</string>
+    <string name="wizard_skip">Salta</string>
+    <string name="wizard_welcome_title">Ti diamo il benvenuto in Atoll</string>
+    <string name="wizard_welcome_body">Atoll usa gli avvisi in tempo reale del telefono per mostrare una pillola intorno alla fotocamera frontale.</string>
+    <string name="wizard_welcome_cta">Configura Atoll</string>
+    <string name="wizard_notif_title">Consenti le notifiche</string>
+    <string name="wizard_notif_body">La pillola è una notifica silenziosa. Senza questo permesso Atoll non può mostrarla.</string>
+    <string name="wizard_notif_cta">Consenti le notifiche</string>
+    <string name="wizard_live_alerts_title">Attiva gli avvisi in tempo reale</string>
+    <string name="wizard_live_alerts_body">Nella prossima schermata, attiva questo interruttore.</string>
+    <string name="wizard_live_alerts_hint_toggle">Avvisi in tempo reale</string>
+    <string name="wizard_live_alerts_cta">Apri le impostazioni</string>
+    <string name="wizard_keep_alive_title">Lascia Atoll attiva in background</string>
+    <string name="wizard_keep_alive_body">Nelle informazioni dell’app, attiva «Consenti attività in background» e «Avvio automatico», se ci sono. Aiutano a tenere visibile la pillola quando esci da Atoll.</string>
+    <string name="wizard_keep_alive_cta">Apri le informazioni dell’app</string>
+    <string name="wizard_done_title">Tutto pronto</string>
+    <string name="wizard_done_body">Accendi la pillola. Puoi cambiarne la misura quando vuoi.</string>
+    <string name="wizard_done_cta">Accendi la pillola</string>
+
+    <!-- Calibrazione -->
+    <string name="cal_visual_width_badge">%1$d dp</string>
+    <string name="cal_visual_step_badge">Passaggio %1$d di %2$d</string>
+    <string name="cal_visual_step1_title">Misura la pillola più piccola</string>
+    <string name="cal_visual_step1_body">Allarga il righello finché spunta appena dai due lati. Poi tocca −1 una volta.</string>
+    <string name="cal_visual_step2_title">Misura la pillola media</string>
+    <string name="cal_visual_step3_title">Misura la pillola larga</string>
+    <string name="cal_visual_step2_body">La pillola si è allargata. Adatta di nuovo il righello: fermati quando le due estremità spariscono dietro la pillola.</string>
+    <string name="cal_visual_save">Salva le misure</string>
+    <string name="cal_visual_finish">Fine</string>
+    <string name="cal_float_permission_title">Misura la pillola sulla Home</string>
+    <string name="cal_float_permission_body">Consenti ad Atoll di apparire sopra le altre app, così puoi vedere insieme il righello e la pillola vera sulla Home. Atoll usa il permesso solo durante la calibrazione.</string>
+    <string name="cal_float_permission_open">Apri le impostazioni</string>
+    <string name="cal_float_start_failed">Il righello non si è aperto. Controlla il permesso per apparire sopra le altre app e riprova.</string>
+    <string name="cal_float_return_manual">Calibrazione chiusa. Apri Atoll dalla Home.</string>
+    <string name="cal_float_android_required">Per calibrare servono gli aggiornamenti in tempo reale di Android 16 o successivi.</string>
+    <string name="cal_float_notifications_required">Consenti le notifiche di Atoll prima di misurare la pillola.</string>
+    <string name="cal_float_live_alerts_required">Attiva gli avvisi in tempo reale per Atoll prima di misurare la pillola.</string>
+    <string name="cal_float_portrait">Tieni il telefono in verticale per calibrare.</string>
+    <string name="cal_float_move_panel">Sposta il pannello</string>
+    <string name="cal_float_ruler_width">Larghezza del righello</string>
+    <string name="cal_float_delta">%1$+d</string>
+    <string name="cal_float_narrow">Stringi di %1$d dp</string>
+    <string name="cal_float_widen">Allarga di %1$d dp</string>
+    <string name="cal_float_up">Sposta il righello in alto</string>
+    <string name="cal_float_down">Sposta il righello in basso</string>
+    <string name="cal_float_options">Opzioni del righello</string>
+    <string name="cal_float_options_back">Torna alla calibrazione</string>
+    <string name="cal_float_color_label">Colore del righello</string>
+    <string name="cal_float_green">Verde</string>
+    <string name="cal_float_magenta">Magenta</string>
+    <string name="cal_float_cyan">Ciano</string>
+    <string name="cal_float_below">Sotto la pillola</string>
+    <string name="cal_float_below_help">Allinea le estremità del righello ai bordi della pillola che vedi sopra.</string>
+    <string name="cal_float_vertical_position">Posizione verticale</string>
+    <string name="cal_float_try_presets">Controlla una misura</string>
+    <string name="cal_float_verify_body">Misure salvate. Scegli una misura: la pillola cambia e il righello mostra la larghezza che dovrebbe avere.</string>
+    <string name="cal_float_target_width">Riferimento: %1$.1f dp</string>
+    <string name="cal_float_select_preset">Il testo manuale è attivo. Scegli una misura per controllarne la larghezza.</string>
+    <string name="cal_float_not_wider">Ogni pillola deve essere più larga della precedente. Se la pillola non è ancora cambiata, aspetta un attimo.</string>
+    <string name="cal_float_min_out_of_range">La pillola più piccola non può superare 160 dp. Controlla di aver allineato il righello alla pillola piccola.</string>
+    <string name="cal_float_max_size">Questa misura è più larga di quanto il telefono possa mostrare. Il righello mostra il riferimento; la pillola si ferma al massimo.</string>
+    <string name="cal_float_save_failed">Non ho potuto salvare la misura. Riprova.</string>
+    <string name="cal_float_saving">Salvataggio…</string>
+</resources>
