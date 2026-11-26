@@ -1,5 +1,6 @@
 package dev.atoll.island.service.card
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -8,6 +9,9 @@ import android.graphics.Paint
 import android.graphics.Shader
 import android.graphics.drawable.Icon
 import androidx.core.graphics.createBitmap
+import dev.atoll.island.data.model.CardBackground
+import dev.atoll.island.data.model.ExpandedCardConfig
+import dev.atoll.island.domain.card.resolveCardBackground
 
 // disegna lo sfondo "dal nero al colore" una volta per colore scelto e lo riusa ai tick della scheda
 object CardBackgroundRenderer {
@@ -17,6 +21,15 @@ object CardBackgroundRenderer {
 
     @Volatile
     private var cached: Triple<Int, Bitmap, Icon>? = null
+
+    internal fun appearance(
+        context: Context,
+        card: ExpandedCardConfig,
+        templatePreset: CardBackground? = null,
+        templateHex: String? = null
+    ) = resolveCardBackground(card, templatePreset, templateHex) { gradient ->
+        context.getColor(if (gradient) android.R.color.system_accent1_600 else android.R.color.system_accent1_800)
+    }
 
     fun gradientStops(colorRgb: Int): IntArray {
         val r = Color.red(colorRgb)

@@ -87,6 +87,7 @@ import dev.atoll.island.data.model.PromotionDiagnostics
 import dev.atoll.island.data.model.StatMetric
 import dev.atoll.island.data.model.TapAction
 import dev.atoll.island.domain.card.ActionSlots
+import dev.atoll.island.domain.card.CardBackgroundAppearance
 import dev.atoll.island.domain.card.CounterReducer
 import dev.atoll.island.domain.card.CustomCardParser
 import dev.atoll.island.domain.card.CustomCardPresets
@@ -146,22 +147,10 @@ fun ExpandedCardSection(config: LiveAlertConfig, onUpdate: CardUpdate, modifier:
 }
 
 private fun previewBrushForCard(context: Context, card: ExpandedCardConfig): Brush {
-    if (card.mode == ExpandedCardMode.MINIMAL) return previewBrush(context, CardBackground.DEFAULT)
-    val tpl = if (card.mode == ExpandedCardMode.CUSTOM_TEMPLATE && card.background == CardBackground.DEFAULT) {
+    val template = if (card.mode == ExpandedCardMode.CUSTOM_TEMPLATE && card.background == CardBackground.DEFAULT) {
         CustomCardPresets.resolveTemplate(card.customTemplateJson)
     } else null
-    if (card.backgroundGradient) {
-        val rgb = if (tpl?.customBgHex != null) {
-            tpl.customBgHex.toLongOrNull(16)?.toInt()?.and(0x00FFFFFF)
-        } else {
-            val eff = tpl?.background ?: card.background
-            ColorOsCardDecorator.gradientColorRgb(context, eff, card.customBgColor)
-        }
-        if (rgb != null) return gradientBrush(rgb)
-    }
-    if (tpl?.customBgHex != null) return previewBrushHex(tpl.customBgHex)
-    if (tpl?.background != null) return previewBrush(context, tpl.background, card.customBgColor)
-    return previewBrush(context, card.background, card.customBgColor)
+    return previewBrush(CardBackgroundRenderer.appearance(context, card, template?.background, template?.customBgHex))
 }
 
 private fun gradientBrush(rgb: Int): Brush {
@@ -175,10 +164,14 @@ private fun previewBrushHex(hex: String): Brush {
     return Brush.verticalGradient(listOf(solid.copy(alpha = 0.92f), solid.copy(alpha = 0.72f)))
 }
 
-private fun previewBrush(context: Context, bg: CardBackground, customColor: Int = 0): Brush = when (bg) {
-    CardBackground.DEFAULT -> Brush.verticalGradient(listOf(Color(0xFF020304), Color(0xFF1A212C)))
-    CardBackground.PITCH -> Brush.verticalGradient(listOf(Color(0xFF090B0E), Color(0xFF0D1014)))
-    else -> previewBrushHex(ColorOsCardDecorator.backgroundHex(context, bg, customColor) ?: "FF121820")
+private fun previewBrush(background: CardBackgroundAppearance): Brush {
+    background.gradientRgb?.let { return gradientBrush(it) }
+    return when {
+        background.preset == CardBackground.PITCH ->
+            Brush.verticalGradient(listOf(Color(0xFF090B0E), Color(0xFF0D1014)))
+        background.argbHex != null -> previewBrushHex(background.argbHex)
+        else -> Brush.verticalGradient(listOf(Color(0xFF020304), Color(0xFF1A212C)))
+    }
 }
 
 @Composable
@@ -202,12 +195,8 @@ private fun CardBackgroundPicker(card: ExpandedCardConfig, onUpdate: CardUpdate)
                 val cd = stringResource(AndroidCardStrings.backgroundNameRes(bg))
                 val fill = if (bg == CardBackground.CUSTOM) {
                     wheelRainbow
-                } else if (card.backgroundGradient && bg.isSolidTintCapable) {
-                    ColorOsCardDecorator.gradientColorRgb(context, bg, card.customBgColor)
-                        ?.let(::gradientBrush)
-                        ?: previewBrush(context, bg, card.customBgColor)
                 } else {
-                    previewBrush(context, bg, card.customBgColor)
+                    previewBrush(CardBackgroundRenderer.appearance(context, card.copy(background = bg)))
                 }
                 Box(
                     modifier = Modifier
@@ -423,8 +412,9 @@ private fun DockSettings(card: ExpandedCardConfig, onUpdate: CardUpdate) {
                         shortcut?.let { ShortcutIcons.load(context, it) } ?: pkg?.let { AppIconLoader.load(context, it, 120) }
                     }
                 }
-                if (dockIcon != null) {
-                    Image(dockIcon!!.asImageBitmap(), null, modifier = Modifier.size(36.dp))
+                val icon = dockIcon
+                if (icon != null) {
+                    Image(icon.asImageBitmap(), null, modifier = Modifier.size(36.dp))
                 } else {
                     Icon(painterResource(AndroidCardStrings.actionIconRes(action)), contentDescription = null, modifier = Modifier.padding(6.dp))
                 }
