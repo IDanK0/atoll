@@ -68,6 +68,19 @@
                     android:id="@+id/dock_label_2"
                     style="@style/CardDockLabel" />
             </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/dock_slot_3"
+                style="@style/CardDockSlot">
+
+                <ImageView
+                    android:id="@+id/dock_icon_3"
+                    style="@style/CardDockIcon" />
+
+                <TextView
+                    android:id="@+id/dock_label_3"
+                    style="@style/CardDockLabel" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

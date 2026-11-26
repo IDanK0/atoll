@@ -41,11 +41,19 @@ object CardCodec {
 
     private fun fields(action: CardAction): List<String> = when (action) {
         is CardAction.LaunchApp -> listOf("app", action.packageName, action.appLabel)
+        is CardAction.AppShortcut -> listOf("shortcut", action.intentUri, action.label, action.packageName)
         is CardAction.OpenUrl -> listOf("url", action.url, action.label)
         is CardAction.CopySnippet -> listOf("copy", action.label, action.text)
+        is CardAction.DialNumber -> listOf("dial", action.phoneNumber, action.label)
+        is CardAction.ClockTimer -> listOf("timer_app", action.seconds.toString(), action.label)
+        CardAction.Camera -> listOf("camera")
+        CardAction.VolumePanel -> listOf("volume")
+        CardAction.InternetPanel -> listOf("internet")
+        CardAction.WifiPanel -> listOf("wifi")
         CardAction.ToggleFlashlight -> listOf("flashlight")
         CardAction.MediaPlayPause -> listOf("play_pause")
         CardAction.MediaNext -> listOf("next")
+        CardAction.MediaPrevious -> listOf("previous")
         CardAction.EditNoteInline -> listOf("edit_note")
         CardAction.CounterPlus -> listOf("counter_plus")
         CardAction.CounterMinus -> listOf("counter_minus")
@@ -58,11 +66,23 @@ object CardCodec {
 
     private fun parse(f: List<String>): CardAction? = when (f.firstOrNull()) {
         "app" -> if (f.size == 3) CardAction.LaunchApp(f[1], f[2]) else null
+        "shortcut" -> when (f.size) {
+            3 -> CardAction.AppShortcut(f[1], f[2])
+            4 -> CardAction.AppShortcut(f[1], f[2], f[3])
+            else -> null
+        }
         "url" -> if (f.size == 3) CardAction.OpenUrl(f[1], f[2]) else null
         "copy" -> if (f.size == 3) CardAction.CopySnippet(f[1], f[2]) else null
+        "dial" -> if (f.size == 3) CardAction.DialNumber(f[1], f[2]) else null
+        "timer_app" -> if (f.size == 3) f[1].toIntOrNull()?.let { CardAction.ClockTimer(it, f[2]) } else null
+        "camera" -> CardAction.Camera
+        "volume" -> CardAction.VolumePanel
+        "internet" -> CardAction.InternetPanel
+        "wifi" -> CardAction.WifiPanel
         "flashlight" -> CardAction.ToggleFlashlight
         "play_pause" -> CardAction.MediaPlayPause
         "next" -> CardAction.MediaNext
+        "previous" -> CardAction.MediaPrevious
         "edit_note" -> CardAction.EditNoteInline
         "counter_plus" -> CardAction.CounterPlus
         "counter_minus" -> CardAction.CounterMinus

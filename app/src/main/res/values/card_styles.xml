@@ -70,15 +70,15 @@
         <item name="android:layout_weight">1</item>
         <item name="android:gravity">center_horizontal</item>
         <item name="android:orientation">vertical</item>
-        <item name="android:paddingTop">6dp</item>
-        <item name="android:paddingBottom">6dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
         <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>
         <item name="android:visibility">gone</item>
     </style>
 
     <style name="CardDockIcon">
-        <item name="android:layout_width">52dp</item>
-        <item name="android:layout_height">52dp</item>
+        <item name="android:layout_width">46dp</item>
+        <item name="android:layout_height">46dp</item>
         <item name="android:importantForAccessibility">no</item>
         <item name="android:scaleType">fitCenter</item>
     </style>
@@ -86,10 +86,10 @@
     <style name="CardDockLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:layout_marginTop">6dp</item>
         <item name="android:ellipsize">end</item>
         <item name="android:maxLines">1</item>
         <item name="android:textColor">#E6FFFFFF</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textSize">13sp</item>
     </style>
 </resources>

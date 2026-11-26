@@ -11,6 +11,7 @@ import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
@@ -33,8 +34,13 @@ import dev.atoll.island.data.prefs.LiveAlertPreferencesRepository
 import dev.atoll.island.domain.AndroidDisplayMetricsProvider
 import dev.atoll.island.domain.card.ActionSlots
 import dev.atoll.island.domain.card.CardContent
+import dev.atoll.island.domain.card.CounterReducer
+import dev.atoll.island.domain.card.CustomCardParser
+import dev.atoll.island.domain.card.CustomCardPresets
+import dev.atoll.island.domain.card.StatSelection
 import dev.atoll.island.service.card.TorchController
 import dev.atoll.island.ui.MainActivity
+import java.time.LocalDate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +66,7 @@ class AtollLiveAlertService : LifecycleService() {
     private var lastCardContent: CardContent? = null
     private var batteryRegistered = false
     private var tickRegistered = false
+    private var statsTickerJob: Job? = null
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = refreshCardIfChanged()
@@ -94,6 +101,10 @@ class AtollLiveAlertService : LifecycleService() {
                 lastDisplayState = currentDisplayState
                 lastRecheckMs = elapsed
                 repairIfNeeded(config)
+                if (stateChanged) {
+                    updateCardMonitors(config)
+                    if (currentDisplayState == Display.STATE_ON) refreshCardIfChanged()
+                }
             }
         }
     }
@@ -293,12 +304,15 @@ class AtollLiveAlertService : LifecycleService() {
     // batteria e minuti solo quando la scheda li mostra, così il consumo resta quasi zero
     private fun updateCardMonitors(config: LiveAlertConfig) {
         val card = config.card
-        val wantBattery = config.enabled && card.mode == ExpandedCardMode.DEVICE_STATS
+        val makerNeeds = if (card.mode == ExpandedCardMode.CUSTOM_TEMPLATE) CustomCardParser.monitorNeeds(card.customTemplateJson) else null
+        val wantBattery = config.enabled && (card.mode == ExpandedCardMode.DEVICE_STATS || makerNeeds?.battery == true)
         val wantTick = config.enabled && when (card.mode) {
             ExpandedCardMode.DEVICE_STATS -> card.stats.any { it == StatMetric.DAY_PROGRESS || it == StatMetric.DATE_TIME }
-            ExpandedCardMode.PROGRESS_COUNTER -> card.counterSource == CounterSource.DAY
+            ExpandedCardMode.PROGRESS_COUNTER -> card.counterSource != CounterSource.CUSTOM || card.counter.resetAtMidnight
+            ExpandedCardMode.CUSTOM_TEMPLATE -> makerNeeds?.tick == true
             else -> false
         }
+        checkCounterMidnightReset(config)
         if (wantBattery != batteryRegistered) {
             if (wantBattery) {
                 ContextCompat.registerReceiver(
@@ -311,8 +325,11 @@ class AtollLiveAlertService : LifecycleService() {
         }
         if (wantTick != tickRegistered) {
             if (wantTick) {
+                val filter = IntentFilter(Intent.ACTION_TIME_TICK).apply {
+                    addAction(Intent.ACTION_DATE_CHANGED)
+                }
                 ContextCompat.registerReceiver(
-                    this, tickReceiver, IntentFilter(Intent.ACTION_TIME_TICK), ContextCompat.RECEIVER_NOT_EXPORTED
+                    this, tickReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED
                 )
             } else {
                 runCatching { unregisterReceiver(tickReceiver) }
@@ -320,20 +337,66 @@ class AtollLiveAlertService : LifecycleService() {
             tickRegistered = wantTick
         }
 
-        if (CardAction.ToggleFlashlight in ActionSlots.resolve(card)) TorchController.ensureRegistered(this)
+        val makerActions = if (card.mode == ExpandedCardMode.CUSTOM_TEMPLATE) {
+            CustomCardPresets.resolveTemplate(card.customTemplateJson).actions
+        } else emptyList()
+        if (CardAction.ToggleFlashlight in ActionSlots.resolve(card) || CardAction.ToggleFlashlight in makerActions) {
+            TorchController.ensureRegistered(this)
+        }
+
+        val wantFastStats = config.enabled && (
+            (card.mode == ExpandedCardMode.DEVICE_STATS && StatSelection.sanitize(card.stats).any { it.needsFastRefresh }) ||
+                (card.mode == ExpandedCardMode.CUSTOM_TEMPLATE && makerNeeds?.fastStats == true)
+            )
+        val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
+        if (wantFastStats && interactive) {
+            if (statsTickerJob?.isActive != true) {
+                statsTickerJob = lifecycleScope.launch {
+                    while (true) {
+                        delay(FAST_STATS_INTERVAL_MS)
+                        if (getSystemService(PowerManager::class.java)?.isInteractive == false) {
+                            statsTickerJob = null
+                            break
+                        }
+                        refreshCardIfChanged()
+                    }
+                }
+            }
+        } else {
+            statsTickerJob?.cancel()
+            statsTickerJob = null
+        }
     }
 
     private fun stopCardMonitors() {
+        statsTickerJob?.cancel()
+        statsTickerJob = null
         if (batteryRegistered) runCatching { unregisterReceiver(batteryReceiver) }
         if (tickRegistered) runCatching { unregisterReceiver(tickReceiver) }
         batteryRegistered = false
         tickRegistered = false
     }
 
+    private fun checkCounterMidnightReset(config: LiveAlertConfig): Boolean {
+        val card = config.card
+        if (!config.enabled || card.mode != ExpandedCardMode.PROGRESS_COUNTER || card.counterSource != CounterSource.CUSTOM) {
+            return false
+        }
+        if (CounterReducer.resetIfNewDay(card.counter, LocalDate.now().toEpochDay()) == null) return false
+        lifecycleScope.launch {
+            LiveAlertPreferencesRepository.getInstance(applicationContext).updateCard { current ->
+                val updated = CounterReducer.resetIfNewDay(current.counter, LocalDate.now().toEpochDay())
+                if (updated != null) current.copy(counter = updated) else current
+            }
+        }
+        return true
+    }
+
     private fun refreshCardIfChanged() {
         if (!hasEnteredForeground) return
         val config = LiveAlertPreferencesRepository.getInstance(applicationContext).config.value
         if (!config.enabled) return
+        if (checkCounterMidnightReset(config)) return
         if (LiveAlertNotificationBuilder.resolveCard(this, config) != lastCardContent) {
             postOrUpdateForeground(config, force = true, scheduleVerification = false)
         }
@@ -392,6 +455,7 @@ class AtollLiveAlertService : LifecycleService() {
         private const val EXTRA_SAMPLE = "sample"
         private val VERIFICATION_DELAYS_MS = longArrayOf(350L, 1_200L, 9_500L)
         private const val RECHECK_INTERVAL_MS = 30_000L
+        private const val FAST_STATS_INTERVAL_MS = 4_000L
 
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()

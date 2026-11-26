@@ -7,6 +7,15 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.BulletSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StrikethroughSpan
+import android.text.style.StyleSpan
+import android.text.style.TypefaceSpan
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.graphics.createBitmap
@@ -15,7 +24,11 @@ import dev.atoll.island.data.model.CardAction
 import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.ToolResult
 import dev.atoll.island.domain.card.CardScene
+import dev.atoll.island.domain.card.NoteMarkdown
+import dev.atoll.island.domain.card.NoteSpanStyle
+import dev.atoll.island.domain.card.ResolvedMakerBlock
 import dev.atoll.island.domain.card.SceneButton
+import kotlin.math.roundToInt
 
 // le schede disegnate da Atoll: stile scuro e pulsanti tondi come quelli di ColorOS
 object CardViews {
@@ -34,6 +47,7 @@ object CardViews {
             is CardScene.Stats -> stats(context, scene, accent)
             is CardScene.Counter -> counter(context, scene, accent)
             is CardScene.Tools -> tools(context, scene)
+            is CardScene.Maker -> maker(context, scene, accent)
         }
     }
 
@@ -74,23 +88,74 @@ object CardViews {
                 }
                 scene.title.isEmpty() -> {
                     setViewVisibility(R.id.nt_title, View.GONE)
-                    setTextViewText(R.id.nt_body, scene.body)
+                    setTextViewText(R.id.nt_body, styledNoteBody(scene, density, baseWhite = true))
                     setTextColor(R.id.nt_body, 0xFFFFFFFF.toInt())
-                    setTextViewTextSize(R.id.nt_body, android.util.TypedValue.COMPLEX_UNIT_SP, 18f)
+                    setTextViewTextSize(R.id.nt_body, TypedValue.COMPLEX_UNIT_SP, 18f)
                 }
                 else -> {
                     setTextViewText(R.id.nt_title, scene.title)
-                    if (scene.body.isEmpty()) setViewVisibility(R.id.nt_body, View.GONE) else setTextViewText(R.id.nt_body, scene.body)
+                    if (scene.body.isEmpty()) setViewVisibility(R.id.nt_body, View.GONE)
+                    else setTextViewText(R.id.nt_body, styledNoteBody(scene, density, baseWhite = false))
                 }
             }
             click(context, R.id.nt_btn, SceneButton(0, CardAction.EditNoteInline, context.getString(R.string.card_action_edit)))
         }
     }
 
+    private fun styledNoteBody(scene: CardScene.Note, density: Float, baseWhite: Boolean): CharSequence {
+        if (scene.spans.isEmpty()) return scene.body
+        val src = scene.body
+        val bulletStarts = scene.spans
+            .filter { it.style == NoteSpanStyle.BULLET }
+            .map { it.start }
+            .filter { src.startsWith(NoteMarkdown.BULLET_PREFIX, startIndex = it) }
+            .toSet()
+
+        val indexMap = IntArray(src.length + 1)
+        val cleaned = StringBuilder(src.length)
+        var i = 0
+        while (i < src.length) {
+            if (i in bulletStarts) {
+                indexMap[i] = cleaned.length
+                indexMap[i + 1] = cleaned.length
+                i += NoteMarkdown.BULLET_PREFIX.length
+            } else {
+                indexMap[i] = cleaned.length
+                cleaned.append(src[i])
+                i++
+            }
+        }
+        indexMap[src.length] = cleaned.length
+
+        val ssb = SpannableStringBuilder(cleaned.toString())
+        val gapPx = (6 * density).roundToInt()
+        for (span in scene.spans) {
+            val s = indexMap[span.start]
+            val e = indexMap[span.end]
+            if (s >= e || e > ssb.length) continue
+            when (span.style) {
+                NoteSpanStyle.BOLD -> ssb.setSpan(StyleSpan(Typeface.BOLD), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                NoteSpanStyle.ITALIC -> ssb.setSpan(StyleSpan(Typeface.ITALIC), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                NoteSpanStyle.STRIKE -> ssb.setSpan(StrikethroughSpan(), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                NoteSpanStyle.CODE -> ssb.setSpan(TypefaceSpan("monospace"), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                NoteSpanStyle.HEADING -> {
+                    ssb.setSpan(StyleSpan(Typeface.BOLD), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(RelativeSizeSpan(1.16f), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    if (!baseWhite) {
+                        ssb.setSpan(ForegroundColorSpan(0xFFFFFFFF.toInt()), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                }
+                NoteSpanStyle.BULLET -> ssb.setSpan(BulletSpan(gapPx), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+        return ssb
+    }
+
     private val dockSlots = listOf(
         Triple(R.id.dock_slot_0, R.id.dock_icon_0, R.id.dock_label_0),
         Triple(R.id.dock_slot_1, R.id.dock_icon_1, R.id.dock_label_1),
-        Triple(R.id.dock_slot_2, R.id.dock_icon_2, R.id.dock_label_2)
+        Triple(R.id.dock_slot_2, R.id.dock_icon_2, R.id.dock_label_2),
+        Triple(R.id.dock_slot_3, R.id.dock_icon_3, R.id.dock_label_3)
     )
 
     private fun dock(context: Context, scene: CardScene.Dock): RemoteViews = rv(context, R.layout.card_dock).apply {
@@ -101,7 +166,12 @@ object CardViews {
         }
         scene.slots.take(dockSlots.size).forEachIndexed { i, button ->
             val (slot, icon, label) = dockSlots[i]
-            val bitmap = (button.action as? CardAction.LaunchApp)?.let { AppIconLoader.load(context, it.packageName) }
+            val appPkg = when (val a = button.action) {
+                is CardAction.LaunchApp -> a.packageName
+                is CardAction.AppShortcut -> a.packageName.takeIf { it.isNotBlank() }
+                else -> null
+            }
+            val bitmap = appPkg?.let { AppIconLoader.load(context, it) }
                 ?: CardMedia.glyph(context, AndroidCardStrings.actionIconRes(button.action))
             setViewVisibility(slot, View.VISIBLE)
             setImageViewBitmap(icon, bitmap)
@@ -116,6 +186,8 @@ object CardViews {
             val child = rv(context, R.layout.card_rv_stat_cell)
             child.setImageViewBitmap(R.id.sc_ring, ring(size, cell.fraction, accent, context.resources.displayMetrics.density))
             child.setTextViewText(R.id.sc_value, cell.value)
+            val textSp = if (cell.value.length >= 6) 13f else 17f
+            child.setTextViewTextSize(R.id.sc_value, TypedValue.COMPLEX_UNIT_SP, textSp)
             child.setTextViewText(R.id.sc_caption, cell.caption)
             addView(R.id.st_row, child)
         }
@@ -123,6 +195,9 @@ object CardViews {
 
     private fun counter(context: Context, scene: CardScene.Counter, accent: Int): RemoteViews = rv(context, R.layout.card_rv_counter).apply {
         setTextViewText(R.id.cv_value, scene.value)
+        if (scene.value.length >= 7) {
+            setTextViewTextSize(R.id.cv_value, TypedValue.COMPLEX_UNIT_SP, 32f)
+        }
         scene.total?.let { setTextViewText(R.id.cv_total, it) } ?: setViewVisibility(R.id.cv_total, View.GONE)
         scene.caption?.let {
             setTextViewText(R.id.cv_caption, it)
@@ -145,10 +220,14 @@ object CardViews {
             }
             click(context, button, b)
         }
-        repeat(scene.segments) { i ->
+        addSegments(context, R.id.cv_bar, scene.segments, scene.filled, accent)
+    }
+
+    private fun RemoteViews.addSegments(context: Context, viewId: Int, segments: Int, filled: Int, accent: Int) {
+        repeat(segments) { i ->
             val seg = rv(context, R.layout.card_rv_segment)
-            seg.tint(R.id.seg, "setBackgroundTintList", if (i < scene.filled) accent else TRACK)
-            addView(R.id.cv_bar, seg)
+            seg.tint(R.id.seg, "setBackgroundTintList", if (i < filled) accent else TRACK)
+            addView(viewId, seg)
         }
     }
 
@@ -174,6 +253,56 @@ object CardViews {
                 setTextViewText(id, b.label)
                 click(context, id, b)
             }
+        }
+    }
+
+    private fun maker(context: Context, scene: CardScene.Maker, accent: Int): RemoteViews = rv(context, R.layout.card_rv_maker).apply {
+        val density = context.resources.displayMetrics.density
+        val ringSize = (52 * density).toInt()
+        scene.blocks.forEach { block ->
+            val child = when (block) {
+                is ResolvedMakerBlock.Value -> rv(context, R.layout.card_mk_value).apply {
+                    setTextViewText(R.id.mk_val, block.text)
+                    block.sub?.let {
+                        setTextViewText(R.id.mk_sub, it)
+                        setViewVisibility(R.id.mk_sub, View.VISIBLE)
+                    }
+                    block.caption?.let {
+                        setTextViewText(R.id.mk_val_cap, it)
+                        setViewVisibility(R.id.mk_val_cap, View.VISIBLE)
+                    }
+                }
+                is ResolvedMakerBlock.Text -> rv(context, R.layout.card_mk_text).apply {
+                    setTextViewText(R.id.mk_txt, block.text)
+                    if (block.muted) setTextColor(R.id.mk_txt, 0xB3FFFFFF.toInt())
+                }
+                is ResolvedMakerBlock.Bar -> rv(context, R.layout.card_mk_bar).apply {
+                    addSegments(context, R.id.mk_bar, block.bar.segments, block.bar.filled, accent)
+                }
+                is ResolvedMakerBlock.Rings -> rv(context, R.layout.card_mk_rings).apply {
+                    block.cells.forEach { cell ->
+                        val c = rv(context, R.layout.card_rv_maker_cell)
+                        c.setImageViewBitmap(R.id.mk_ring, ring(ringSize, cell.fraction, accent, density))
+                        c.setTextViewText(R.id.mk_ring_val, cell.value)
+                        if (cell.value.length >= 6) {
+                            c.setTextViewTextSize(R.id.mk_ring_val, TypedValue.COMPLEX_UNIT_SP, 10f)
+                        }
+                        c.setTextViewText(R.id.mk_ring_cap, cell.caption)
+                        addView(R.id.mk_rings, c)
+                    }
+                }
+                is ResolvedMakerBlock.Buttons -> rv(context, R.layout.card_mk_buttons).apply {
+                    val ids = listOf(R.id.mk_btn_0, R.id.mk_btn_1, R.id.mk_btn_2, R.id.mk_btn_3)
+                    ids.forEachIndexed { i, id ->
+                        block.buttons.getOrNull(i)?.let { b ->
+                            setViewVisibility(id, View.VISIBLE)
+                            setTextViewText(id, b.label)
+                            click(context, id, b)
+                        }
+                    }
+                }
+            }
+            addView(R.id.mk_root, child)
         }
     }
 

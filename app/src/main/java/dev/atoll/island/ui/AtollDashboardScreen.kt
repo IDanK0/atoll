@@ -143,9 +143,9 @@ fun AtollDashboardScreen(
         ) {
             item(key = "mode") { ModeSwitch(isAdvancedMode, actions::setAdvancedMode) }
             if (isAdvancedMode) {
-                advancedItems(config, active, diagnostics, displayMetrics, adaptiveResult, sentText, actions)
+                expertSections(config, active, diagnostics, displayMetrics, adaptiveResult, sentText, actions)
             } else {
-                simpleItems(config, active, diagnostics, displayMetrics, adaptiveResult, actions)
+                basicSections(config, active, diagnostics, displayMetrics, adaptiveResult, actions)
             }
         }
     }
@@ -153,7 +153,7 @@ fun AtollDashboardScreen(
     if (showAbout) AboutAndLicensesDialog(onDismiss = { showAbout = false })
 }
 
-private fun LazyListScope.simpleItems(
+private fun LazyListScope.basicSections(
     config: LiveAlertConfig,
     active: Boolean,
     diagnostics: PromotionDiagnostics,
@@ -185,7 +185,7 @@ private fun LazyListScope.cardItems(config: LiveAlertConfig, actions: DashboardA
     }
 }
 
-private fun LazyListScope.advancedItems(
+private fun LazyListScope.expertSections(
     config: LiveAlertConfig,
     active: Boolean,
     diagnostics: PromotionDiagnostics,

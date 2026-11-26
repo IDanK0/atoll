@@ -6,7 +6,8 @@ enum class ExpandedCardMode {
     SHORTCUT_DOCK,
     DEVICE_STATS,
     PROGRESS_COUNTER,
-    QUICK_TOOLS;
+    QUICK_TOOLS,
+    CUSTOM_TEMPLATE;
 
     companion object {
         fun fromName(name: String?): ExpandedCardMode = entries.firstOrNull { it.name == name } ?: SHORTCUT_DOCK
@@ -15,23 +16,50 @@ enum class ExpandedCardMode {
 
 enum class StatMetric {
     BATTERY,
+    BATTERY_POWER,
+    CHARGE_STATE,
+    CHARGE_TIME,
     BATTERY_TEMP,
-    DAY_PROGRESS,
+    BATTERY_CYCLES,
     FREE_RAM,
+    STORAGE_FREE,
+    CPU_FREQUENCY,
+    THERMAL_STATE,
+    UPTIME,
+    DAY_PROGRESS,
     DATE_TIME;
+
+    val needsFastRefresh: Boolean
+        get() = this == BATTERY_POWER || this == CPU_FREQUENCY || this == CHARGE_TIME
 
     companion object {
         fun fromName(name: String?): StatMetric? = entries.firstOrNull { it.name == name }
     }
 }
 
-enum class CounterSource { CUSTOM, DAY }
+enum class ChargeState { AC, USB, WIRELESS, FULL, DISCHARGING }
+
+enum class CounterSource { CUSTOM, DAY, WEEK, MONTH, YEAR }
 
 enum class TapAction { OPEN_ATOLL, LAUNCH_APP, NONE }
 
 enum class LargeIconType { NONE, VECTOR, IMAGE }
 
 enum class BadgeIcon { BOLT, NOTE, TIMER, STAR, TERMINAL, MUSIC, PHONE, BOOKMARK }
+
+enum class CardBackground(val colorHex: String?) {
+    DEFAULT(null),
+    SYSTEM(null),
+    OCEAN("88142C48"),
+    FOREST("88143628"),
+    PLUM("88301B47"),
+    AMBER("883D2812"),
+    PITCH("F2090B0E");
+
+    companion object {
+        fun fromName(name: String?): CardBackground = entries.firstOrNull { it.name == name } ?: DEFAULT
+    }
+}
 
 data class LargeIconConfig(
     val type: LargeIconType = LargeIconType.NONE,
@@ -49,11 +77,19 @@ object CardColors {
 
 sealed interface CardAction {
     data class LaunchApp(val packageName: String, val appLabel: String) : CardAction
+    data class AppShortcut(val intentUri: String, val label: String, val packageName: String = "") : CardAction
     data class OpenUrl(val url: String, val label: String) : CardAction
     data class CopySnippet(val label: String, val text: String) : CardAction
+    data class DialNumber(val phoneNumber: String, val label: String) : CardAction
+    data class ClockTimer(val seconds: Int, val label: String) : CardAction
+    data object Camera : CardAction
+    data object VolumePanel : CardAction
+    data object InternetPanel : CardAction
+    data object WifiPanel : CardAction
     data object ToggleFlashlight : CardAction
     data object MediaPlayPause : CardAction
     data object MediaNext : CardAction
+    data object MediaPrevious : CardAction
     data object EditNoteInline : CardAction
     data object CounterPlus : CardAction
     data object CounterMinus : CardAction
@@ -64,10 +100,19 @@ sealed interface CardAction {
     data object RefreshStats : CardAction
 
     // questi aprono qualcosa, quindi PendingIntent.getActivity; gli altri vanno al receiver
-    val opensUi: Boolean get() = this is LaunchApp || this is OpenUrl
+    val opensUi: Boolean
+        get() = this is LaunchApp || this is AppShortcut || this is OpenUrl ||
+            this is DialNumber || this is ClockTimer ||
+            this == Camera || this == VolumePanel || this == InternetPanel || this == WifiPanel
 }
 
-data class CounterState(val count: Int = 0, val goal: Int = 8)
+data class CounterState(
+    val count: Int = 0,
+    val goal: Int = 8,
+    val step: Int = 1,
+    val resetAtMidnight: Boolean = false,
+    val lastResetEpochDay: Long = 0L
+)
 
 sealed interface ToolResult {
     data class Dice(val value: Int) : ToolResult
@@ -90,6 +135,8 @@ data class ExpandedCardConfig(
     val counterLabel: String = "",
     val counter: CounterState = CounterState(),
     val accentColor: Int = CardColors.DEFAULT,
+    val background: CardBackground = CardBackground.DEFAULT,
+    val customTemplateJson: String = "",
     val randomMin: Int = 1,
     val randomMax: Int = 100,
     val lastTool: ToolResult? = null,

@@ -12,14 +12,40 @@ import kotlin.random.Random
 object CounterReducer {
     const val MIN_GOAL = 1
     const val MAX_GOAL = 999
+    const val MIN_STEP = 1
+    const val MAX_STEP = 100
 
-    fun plus(state: CounterState) = state.copy(count = (state.count + 1).coerceIn(0, state.goal))
-    fun minus(state: CounterState) = state.copy(count = (state.count - 1).coerceIn(0, state.goal))
+    fun plus(state: CounterState): CounterState {
+        val delta = state.step.coerceIn(MIN_STEP, MAX_STEP)
+        return state.copy(count = (state.count + delta).coerceIn(0, state.goal))
+    }
+
+    fun minus(state: CounterState): CounterState {
+        val delta = state.step.coerceIn(MIN_STEP, MAX_STEP)
+        return state.copy(count = (state.count - delta).coerceIn(0, state.goal))
+    }
+
     fun reset(state: CounterState) = state.copy(count = 0)
 
     fun setGoal(state: CounterState, goal: Int): CounterState {
         val clamped = goal.coerceIn(MIN_GOAL, MAX_GOAL)
         return state.copy(goal = clamped, count = state.count.coerceIn(0, clamped))
+    }
+
+    fun setStep(state: CounterState, step: Int): CounterState =
+        state.copy(step = step.coerceIn(MIN_STEP, MAX_STEP))
+
+    fun setResetAtMidnight(state: CounterState, enabled: Boolean, todayEpochDay: Long): CounterState =
+        state.copy(
+            resetAtMidnight = enabled,
+            lastResetEpochDay = if (enabled) todayEpochDay else state.lastResetEpochDay
+        )
+
+    fun resetIfNewDay(state: CounterState, todayEpochDay: Long): CounterState? {
+        if (!state.resetAtMidnight || todayEpochDay <= 0L) return null
+        if (state.lastResetEpochDay <= 0L) return state.copy(lastResetEpochDay = todayEpochDay)
+        if (todayEpochDay <= state.lastResetEpochDay) return null
+        return state.copy(count = 0, lastResetEpochDay = todayEpochDay)
     }
 }
 
@@ -45,6 +71,11 @@ object Randomizer {
 
 object ActionSlots {
     const val MAX_SLOTS = 3
+    const val MAX_DOCK_SLOTS = 4
+    const val MAX_TIMER_SECONDS = 86_400
+
+    fun maxSlots(mode: ExpandedCardMode): Int =
+        if (mode == ExpandedCardMode.SHORTCUT_DOCK) MAX_DOCK_SLOTS else MAX_SLOTS
 
     private val universal = listOf(
         CardAction.ToggleFlashlight,
@@ -58,9 +89,10 @@ object ActionSlots {
         ExpandedCardMode.SHORTCUT_DOCK -> universal
         ExpandedCardMode.DEVICE_STATS -> listOf(CardAction.RefreshStats)
         ExpandedCardMode.PROGRESS_COUNTER ->
-            if (config.counterSource == CounterSource.DAY) emptyList()
+            if (config.counterSource != CounterSource.CUSTOM) emptyList()
             else listOf(CardAction.CounterPlus, CardAction.CounterMinus, CardAction.CounterReset)
         ExpandedCardMode.QUICK_TOOLS -> listOf(CardAction.RollDice, CardAction.FlipCoin, CardAction.RandomNumber)
+        ExpandedCardMode.CUSTOM_TEMPLATE -> emptyList()
     }
 
     // pulsanti che hanno senso solo nella loro modalità
@@ -80,13 +112,21 @@ object ActionSlots {
 
     fun isValid(action: CardAction): Boolean = when (action) {
         is CardAction.LaunchApp -> action.packageName.isNotBlank()
+        is CardAction.AppShortcut -> action.intentUri.isNotBlank() && !action.intentUri.trimStart().startsWith("javascript:", ignoreCase = true)
         is CardAction.OpenUrl -> normalizeUrl(action.url) != null
         is CardAction.CopySnippet -> action.text.isNotEmpty()
+        is CardAction.DialNumber -> normalizePhone(action.phoneNumber) != null
+        is CardAction.ClockTimer -> action.seconds in 1..MAX_TIMER_SECONDS
         else -> true
     }
 
     fun sanitize(actions: List<CardAction>, mode: ExpandedCardMode): List<CardAction> =
-        actions.filter { isAllowed(it, mode) }.distinct().take(MAX_SLOTS)
+        actions.filter { isAllowed(it, mode) }.distinct().take(maxSlots(mode))
+
+    fun normalizePhone(raw: String): String? {
+        val cleaned = raw.trim().filterIndexed { i, c -> c.isDigit() || (c == '+' && i == 0) || c == '*' || c == '#' }
+        return cleaned.takeIf { it.any(Char::isDigit) }
+    }
 
     fun resolve(config: ExpandedCardConfig): List<CardAction> =
         sanitize(config.actionOverrides[config.mode] ?: defaultsFor(config), config.mode)

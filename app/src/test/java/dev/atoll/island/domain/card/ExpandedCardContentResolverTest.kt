@@ -46,7 +46,7 @@ class ExpandedCardContentResolverTest {
             val content = resolve(card, env.copy(minimalTitle = ""))
             assertTrue("$mode", content.title.isNotBlank() || content.title == CardText.BLANK)
             assertTrue("$mode", content.title.isNotEmpty())
-            assertTrue("$mode", content.actions.size <= ActionSlots.MAX_SLOTS)
+            assertTrue("$mode", content.actions.size <= ActionSlots.maxSlots(mode))
         }
     }
 
@@ -79,6 +79,14 @@ class ExpandedCardContentResolverTest {
         assertEquals("Spesa", withBody.title)
         assertEquals("Casa", withBody.subText)
         assertEquals(listOf(CardAction.EditNoteInline), withBody.actions.map { it.action })
+    }
+
+    @Test
+    fun noteShowsFormattedTextWithoutChangingTheSource() {
+        val source = "# Spesa\n- **Latte** e *pane*\n- `a_b` ~~ieri~~ [lista](https://example.com)"
+        val note = ExpandedCardConfig(mode = ExpandedCardMode.CUSTOM_NOTE, noteBody = source)
+        assertEquals("Spesa\n• Latte e pane\n• a_b ieri lista", resolve(note).body)
+        assertEquals(source, note.noteBody)
     }
 
     @Test
@@ -116,6 +124,42 @@ class ExpandedCardContentResolverTest {
     }
 
     @Test
+    fun newHardwareAndPowerMetricsResolveCleanly() {
+        val fullStats = DeviceStats(
+            batteryPowerWatts = 18.4f,
+            chargeState = dev.atoll.island.data.model.ChargeState.AC,
+            chargeTimeMinutes = 24,
+            batteryCycles = 42,
+            storageFreeGb = 128f,
+            storageTotalGb = 256f,
+            cpuMaxMhz = 2400,
+            thermalStatus = 1,
+            uptimeMinutes = 95L
+        )
+        val first = resolve(
+            ExpandedCardConfig(
+                mode = ExpandedCardMode.DEVICE_STATS,
+                stats = listOf(StatMetric.BATTERY_POWER, StatMetric.CPU_FREQUENCY, StatMetric.THERMAL_STATE)
+            ),
+            env.copy(stats = fullStats)
+        )
+        assertEquals("+18W", first.metrics[0].valueText)
+        assertEquals("2.4 GHz", first.metrics[1].valueText)
+        assertEquals("1", first.metrics[2].valueText)
+
+        val second = resolve(
+            ExpandedCardConfig(
+                mode = ExpandedCardMode.DEVICE_STATS,
+                stats = listOf(StatMetric.CHARGE_STATE, StatMetric.CHARGE_TIME, StatMetric.BATTERY_CYCLES)
+            ),
+            env.copy(stats = fullStats)
+        )
+        assertEquals("AC", second.metrics[0].valueText)
+        assertEquals("24m", second.metrics[1].valueText)
+        assertEquals("42", second.metrics[2].valueText)
+    }
+
+    @Test
     fun counterDrawsOneSegmentPerStep() {
         val card = ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counter = CounterState(3, 8))
         val content = resolve(card)
@@ -135,6 +179,28 @@ class ExpandedCardContentResolverTest {
         assertEquals(360, content.progress?.value)
         assertEquals(1440, content.progress?.segments?.sum())
         assertTrue(content.actions.isEmpty())
+    }
+
+    @Test
+    fun weekMonthYearProgressResolveCleanly() {
+        val week = resolve(
+            ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.WEEK),
+            env.copy(dayOfWeekIndex = 4, minuteOfDay = 0)
+        )
+        assertEquals(7, week.progress?.segments?.size)
+
+        val month = resolve(
+            ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.MONTH),
+            env.copy(dayOfMonth = 16, daysInMonth = 30, minuteOfDay = 0)
+        )
+        assertEquals(50 * 30 * 1440 / 100, month.progress?.value)
+
+        val year = resolve(
+            ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.YEAR),
+            env.copy(dayOfYear = 184, daysInYear = 366, minuteOfDay = 0)
+        )
+        assertEquals(50, CardText.timeProgress(CounterSource.YEAR, env.copy(dayOfYear = 184, daysInYear = 366, minuteOfDay = 0)).percent)
+        assertEquals(CardText.BLANK, year.title)
     }
 
     @Test

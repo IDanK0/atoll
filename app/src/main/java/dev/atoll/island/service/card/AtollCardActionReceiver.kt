@@ -57,6 +57,7 @@ class AtollCardActionReceiver : BroadcastReceiver() {
             }
             CardAction.MediaPlayPause -> mediaKey(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
             CardAction.MediaNext -> mediaKey(context, KeyEvent.KEYCODE_MEDIA_NEXT)
+            CardAction.MediaPrevious -> mediaKey(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
             is CardAction.CopySnippet -> {
                 context.getSystemService(ClipboardManager::class.java)
                     ?.setPrimaryClip(ClipData.newPlainText(action.label, action.text))

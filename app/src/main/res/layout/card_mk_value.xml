@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="2dp"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/mk_val"
+            style="@style/CardValue"
+            android:ellipsize="end"
+            android:textSize="22sp" />
+
+        <TextView
+            android:id="@+id/mk_sub"
+            style="@style/CardTotal"
+            android:ellipsize="end"
+            android:textSize="14sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/mk_val_cap"
+        style="@style/CardCaption"
+        android:layout_marginTop="2dp"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>

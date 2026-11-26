@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.atoll.island.data.model.BadgeIcon
+import dev.atoll.island.data.model.CardBackground
 import dev.atoll.island.data.model.CardColors
 import dev.atoll.island.data.model.CounterSource
 import dev.atoll.island.data.model.CounterState
@@ -33,7 +34,12 @@ internal object ExpandedCardPreferences {
     private val counterLabel = stringPreferencesKey("card_counter_label")
     private val counterCount = intPreferencesKey("card_counter_count")
     private val counterGoal = intPreferencesKey("card_counter_goal")
+    private val counterStep = intPreferencesKey("card_counter_step")
+    private val counterResetMidnight = booleanPreferencesKey("card_counter_reset_midnight")
+    private val counterLastResetDay = longPreferencesKey("card_counter_last_reset_day")
     private val accent = intPreferencesKey("card_accent")
+    private val background = stringPreferencesKey("card_background")
+    private val customTemplateJson = stringPreferencesKey("card_custom_template_json")
     private val randomMin = intPreferencesKey("card_random_min")
     private val randomMax = intPreferencesKey("card_random_max")
     private val lastTool = stringPreferencesKey("card_last_tool")
@@ -59,9 +65,17 @@ internal object ExpandedCardPreferences {
             useColorOsLayouts = prefs[useColorOs] ?: true,
             counterSource = CounterSource.entries.firstOrNull { it.name == prefs[counterSource] } ?: CounterSource.CUSTOM,
             counterLabel = prefs[counterLabel] ?: "",
-            counter = CounterState(count = (prefs[counterCount] ?: 0).coerceIn(0, goal), goal = goal),
+            counter = CounterState(
+                count = (prefs[counterCount] ?: 0).coerceIn(0, goal),
+                goal = goal,
+                step = (prefs[counterStep] ?: 1).coerceIn(CounterReducer.MIN_STEP, CounterReducer.MAX_STEP),
+                resetAtMidnight = prefs[counterResetMidnight] ?: false,
+                lastResetEpochDay = prefs[counterLastResetDay] ?: 0L
+            ),
             // il vecchio indaco predefinito diventa l'accento di sistema
             accentColor = (prefs[accent] ?: defaults.accentColor).let { if (it == CardColors.BADGE) CardColors.DEFAULT else it },
+            background = CardBackground.fromName(prefs[background]),
+            customTemplateJson = prefs[customTemplateJson] ?: "",
             randomMin = prefs[randomMin] ?: defaults.randomMin,
             randomMax = prefs[randomMax] ?: defaults.randomMax,
             lastTool = CardCodec.decodeTool(prefs[lastTool]),
@@ -91,7 +105,12 @@ internal object ExpandedCardPreferences {
         prefs[counterLabel] = card.counterLabel
         prefs[counterGoal] = card.counter.goal
         prefs[counterCount] = card.counter.count
+        prefs[counterStep] = card.counter.step.coerceIn(CounterReducer.MIN_STEP, CounterReducer.MAX_STEP)
+        prefs[counterResetMidnight] = card.counter.resetAtMidnight
+        prefs[counterLastResetDay] = card.counter.lastResetEpochDay
         prefs[accent] = card.accentColor
+        prefs[background] = card.background.name
+        prefs[customTemplateJson] = card.customTemplateJson
         prefs[randomMin] = min
         prefs[randomMax] = max
         prefs[lastTool] = CardCodec.encodeTool(card.lastTool)

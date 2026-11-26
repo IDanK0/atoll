@@ -43,7 +43,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +62,6 @@ import dev.atoll.island.data.model.WizardLaunchRequest
 import dev.atoll.island.domain.OnboardingCoordinator
 import dev.atoll.island.ui.components.CapsulePreview
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun SetupWizardScreen(
@@ -80,8 +78,7 @@ fun SetupWizardScreen(
         initialPage = launchRequest.initialStep.index,
         pageCount = { OnboardingStep.entries.size }
     )
-    val coroutineScope = rememberCoroutineScope()
-
+    var targetStep by remember(launchRequest) { mutableStateOf(launchRequest.initialStep) }
     var openedAppInfoOnKeepAlive by remember { mutableStateOf(false) }
 
     // ricontrollo i permessi quando torni dalle impostazioni
@@ -90,50 +87,62 @@ fun SetupWizardScreen(
         onPauseOrDispose { }
     }
 
+    // tiene lo scorrimento su uno stato stabile così il cambio pagina non lo cancella a metà
+    LaunchedEffect(targetStep) {
+        if (pagerState.currentPage != targetStep.index || pagerState.currentPageOffsetFraction != 0f) {
+            pagerState.animateScrollToPage(targetStep.index)
+        }
+    }
+
+    // riallinea lo scorrimento se un cambio finestra di sistema lo interrompe
+    LaunchedEffect(pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress &&
+            (pagerState.currentPage != targetStep.index || pagerState.currentPageOffsetFraction != 0f)
+        ) {
+            pagerState.animateScrollToPage(targetStep.index)
+        }
+    }
+
     // se il permesso arriva mentre sei al passo 1 va avanti da solo
-    var waitingForPermission by remember(pagerState.currentPage) {
+    var waitingForPermission by remember(targetStep) {
         mutableStateOf(
-            pagerState.currentPage == OnboardingStep.NOTIFICATIONS.index &&
-                !diagnostics.notificationsEnabled
+            targetStep == OnboardingStep.NOTIFICATIONS && !diagnostics.notificationsEnabled
         )
     }
-    LaunchedEffect(pagerState.currentPage, diagnostics.notificationsEnabled) {
-        if (pagerState.currentPage == OnboardingStep.NOTIFICATIONS.index) {
+    LaunchedEffect(targetStep, diagnostics.notificationsEnabled) {
+        if (targetStep == OnboardingStep.NOTIFICATIONS) {
             if (!diagnostics.notificationsEnabled) {
                 waitingForPermission = true
             } else if (waitingForPermission) {
                 waitingForPermission = false
                 delay(750)
-                if (pagerState.currentPage == OnboardingStep.NOTIFICATIONS.index) {
-                    pagerState.animateScrollToPage(OnboardingStep.LIVE_ALERTS.index)
+                if (targetStep == OnboardingStep.NOTIFICATIONS) {
+                    targetStep = OnboardingStep.LIVE_ALERTS
                 }
             }
         }
     }
 
     fun goToStep(step: OnboardingStep) {
-        coroutineScope.launch {
-            pagerState.animateScrollToPage(step.index)
-        }
+        targetStep = step
     }
 
     fun handleBack() {
-        val prev = pagerState.currentPage - 1
+        val prev = targetStep.index - 1
         when {
-            launchRequest.isRerun && pagerState.currentPage == launchRequest.initialStep.index && onDismissRerun != null ->
+            launchRequest.isRerun && targetStep == launchRequest.initialStep && onDismissRerun != null ->
                 onDismissRerun()
             prev >= 0 -> goToStep(OnboardingStep.fromIndex(prev))
             onDismissRerun != null -> onDismissRerun()
         }
     }
 
-    BackHandler(enabled = pagerState.currentPage > 0 || (launchRequest.isRerun && onDismissRerun != null)) {
+    BackHandler(enabled = targetStep.index > 0 || (launchRequest.isRerun && onDismissRerun != null)) {
         handleBack()
     }
 
-    val currentStep = OnboardingStep.fromIndex(pagerState.currentPage)
     val animatedProgress by animateFloatAsState(
-        targetValue = OnboardingCoordinator.stepProgressFraction(currentStep),
+        targetValue = OnboardingCoordinator.stepProgressFraction(targetStep),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "wizardProgress"
     )
@@ -156,7 +165,7 @@ fun SetupWizardScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val showBack = pagerState.currentPage > 0 || (launchRequest.isRerun && onDismissRerun != null)
+                val showBack = targetStep.index > 0 || (launchRequest.isRerun && onDismissRerun != null)
                 if (showBack) {
                     IconButton(onClick = ::handleBack) {
                         Icon(

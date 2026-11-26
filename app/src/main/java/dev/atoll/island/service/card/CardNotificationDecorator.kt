@@ -14,12 +14,14 @@ import dev.atoll.island.domain.card.CardContent
 import dev.atoll.island.domain.card.CardEnvironment
 import dev.atoll.island.domain.card.CardStyle
 import dev.atoll.island.domain.card.ExpandedCardContentResolver
+import java.time.LocalDate
 import java.time.LocalTime
 
 object CardNotificationDecorator {
 
     fun environment(context: Context, minimalTitle: String, minimalText: String): CardEnvironment {
         val now = System.currentTimeMillis()
+        val date = LocalDate.now()
         val time = LocalTime.now()
         val strings = AndroidCardStrings(context)
         return CardEnvironment(
@@ -30,7 +32,13 @@ object CardNotificationDecorator {
             timeText = strings.clock(now),
             confirmation = CardTransientState.current(),
             minimalTitle = minimalTitle,
-            minimalText = minimalText
+            minimalText = minimalText,
+            dayOfWeekIndex = date.dayOfWeek.value,
+            dayOfMonth = date.dayOfMonth,
+            daysInMonth = date.lengthOfMonth(),
+            dayOfYear = date.dayOfYear,
+            daysInYear = date.lengthOfYear(),
+            monthOfYear = date.monthValue
         )
     }
 

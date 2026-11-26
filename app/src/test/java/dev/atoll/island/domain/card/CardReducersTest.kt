@@ -58,15 +58,16 @@ class CardReducersTest {
     }
 
     @Test
-    fun neverMoreThanThreeButtons() {
+    fun dockAllowsFourButtonsAndOtherModesStayAtThree() {
         val many = listOf(
             CardAction.ToggleFlashlight, CardAction.MediaNext, CardAction.MediaPlayPause,
             CardAction.OpenUrl("example.com", "x"), CardAction.CopySnippet("a", "b")
         )
-        assertEquals(3, ActionSlots.sanitize(many, ExpandedCardMode.SHORTCUT_DOCK).size)
+        assertEquals(4, ActionSlots.sanitize(many, ExpandedCardMode.SHORTCUT_DOCK).size)
+        assertEquals(3, ActionSlots.sanitize(many, ExpandedCardMode.CUSTOM_NOTE).size)
         ExpandedCardMode.entries.forEach { mode ->
             val config = ExpandedCardConfig(mode = mode)
-            assertTrue(ActionSlots.resolve(config).size <= ActionSlots.MAX_SLOTS)
+            assertTrue(ActionSlots.resolve(config).size <= ActionSlots.maxSlots(mode))
             assertEquals(ActionSlots.defaultsFor(config), ActionSlots.resolve(config))
         }
     }
@@ -94,6 +95,20 @@ class CardReducersTest {
         assertEquals(listOf(CardAction.FlipCoin), ActionSlots.resolve(one))
         val day = ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.DAY)
         assertTrue(ActionSlots.resolve(day).isEmpty())
+        val week = ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.WEEK)
+        assertTrue(ActionSlots.resolve(week).isEmpty())
+    }
+
+    @Test
+    fun counterStepAndMidnightReset() {
+        val stepped = CounterState(count = 2, goal = 10, step = 3)
+        assertEquals(5, CounterReducer.plus(stepped).count)
+        assertEquals(0, CounterReducer.minus(stepped).count)
+        val armed = CounterReducer.setResetAtMidnight(stepped, enabled = true, todayEpochDay = 200L)
+        assertNull(CounterReducer.resetIfNewDay(armed, todayEpochDay = 200L))
+        val nextDay = CounterReducer.resetIfNewDay(armed, todayEpochDay = 201L)
+        assertEquals(0, nextDay?.count)
+        assertEquals(201L, nextDay?.lastResetEpochDay)
     }
 
     @Test
@@ -110,10 +125,17 @@ class CardReducersTest {
         val actions = listOf(
             CardAction.CopySnippet("a\tb", "riga 1\nriga 2 \\ fine"),
             CardAction.LaunchApp("com.example", "Example"),
+            CardAction.AppShortcut("intent:#Intent;package=com.ex;end", "Chat", "com.ex"),
             CardAction.OpenUrl("https://x.y", ""),
+            CardAction.DialNumber("+39 333-1234567", "Casa"),
+            CardAction.ClockTimer(300, "Pasta"),
+            CardAction.WifiPanel,
+            CardAction.InternetPanel,
             CardAction.FlipCoin
         )
         assertEquals(actions, CardCodec.decodeActions(CardCodec.encodeActions(actions)))
+        assertEquals("+39333123", ActionSlots.normalizePhone("+39 333 123"))
+        assertNull(ActionSlots.normalizePhone("abc"))
         assertTrue(CardCodec.decodeActions("").isEmpty())
         assertTrue(CardCodec.decodeActions("unknown\tx").isEmpty())
 
@@ -131,6 +153,18 @@ class CardReducersTest {
         assertEquals(3, stats.size)
         stats = StatSelection.toggle(stats, stats.first())
         assertEquals(2, stats.size)
+    }
+
+    @Test
+    fun powerAndHardwareSurviveASavedSelection() {
+        val saved = "BATTERY_POWER,CPU_FREQUENCY,THERMAL_STATE"
+        assertEquals(saved, CardCodec.encodeStats(StatSelection.sanitize(CardCodec.decodeStats(saved).orEmpty())))
+    }
+
+    @Test
+    fun systemShortcutsKeepTheirOrderAfterRestart() {
+        val file = "camera\nvolume\nprevious"
+        assertEquals(file, CardCodec.encodeActions(ActionSlots.sanitize(CardCodec.decodeActions(file), ExpandedCardMode.SHORTCUT_DOCK)))
     }
 
     @Test

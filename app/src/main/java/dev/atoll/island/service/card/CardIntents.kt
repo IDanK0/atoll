@@ -3,6 +3,9 @@ package dev.atoll.island.service.card
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.provider.AlarmClock
+import android.provider.MediaStore
+import android.provider.Settings
 import androidx.core.net.toUri
 import dev.atoll.island.data.model.CardAction
 import dev.atoll.island.data.model.ExpandedCardConfig
@@ -29,9 +32,26 @@ object CardIntents {
         if (action.opensUi) {
             val intent = when (action) {
                 is CardAction.LaunchApp -> context.packageManager.getLaunchIntentForPackage(action.packageName)
+                is CardAction.AppShortcut -> runCatching {
+                    Intent.parseUri(action.intentUri, Intent.URI_INTENT_SCHEME)
+                }.getOrNull()
                 is CardAction.OpenUrl -> ActionSlots.normalizeUrl(action.url)?.let { Intent(Intent.ACTION_VIEW, it.toUri()) }
+                is CardAction.DialNumber -> ActionSlots.normalizePhone(action.phoneNumber)?.let {
+                    Intent(Intent.ACTION_DIAL, "tel:$it".toUri())
+                }
+                is CardAction.ClockTimer -> Intent(AlarmClock.ACTION_SET_TIMER)
+                    .putExtra(AlarmClock.EXTRA_LENGTH, action.seconds)
+                    .apply {
+                        action.label.trim().takeIf { it.isNotEmpty() }?.let { putExtra(AlarmClock.EXTRA_MESSAGE, it) }
+                    }
+                CardAction.Camera -> Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+                CardAction.VolumePanel -> panelOrSettings(context, Settings.Panel.ACTION_VOLUME, Settings.ACTION_SOUND_SETTINGS)
+                CardAction.InternetPanel -> panelOrSettings(
+                    context, Settings.Panel.ACTION_INTERNET_CONNECTIVITY, Settings.ACTION_WIRELESS_SETTINGS
+                )
+                CardAction.WifiPanel -> panelOrSettings(context, Settings.Panel.ACTION_WIFI, Settings.ACTION_WIFI_SETTINGS)
                 else -> null
-            }?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) ?: return null
+            }?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP) ?: return null
             return PendingIntent.getActivity(context, REQUEST_ACTIVITY + slot, intent, IMMUTABLE)
         }
         val encoded = CardCodec.encodeActions(listOf(action))
@@ -62,5 +82,10 @@ object CardIntents {
             .setDataAndType(uri, "image/jpeg")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         return PendingIntent.getActivity(context, REQUEST_PHOTO, intent, IMMUTABLE)
+    }
+
+    private fun panelOrSettings(context: Context, panelAction: String, fallbackAction: String): Intent {
+        val panel = Intent(panelAction)
+        return if (panel.resolveActivity(context.packageManager) != null) panel else Intent(fallbackAction)
     }
 }

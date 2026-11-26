@@ -1,6 +1,7 @@
 package dev.atoll.island.domain.card
 
 import dev.atoll.island.data.model.CardAction
+import dev.atoll.island.data.model.CounterSource
 import dev.atoll.island.data.model.CounterState
 import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.ExpandedCardMode
@@ -35,7 +36,8 @@ class CardSceneBuilderTest {
 
     private val env = CardEnvironment(minuteOfDay = 600, apiLevel = 37, stats = DeviceStats(batteryPercent = 80))
 
-    private fun build(card: ExpandedCardConfig, photo: Boolean = false) = CardSceneBuilder.build(card, env, strings, strings, photo)
+    private fun build(card: ExpandedCardConfig, photo: Boolean = false, e: CardEnvironment = env) =
+        CardSceneBuilder.build(card, e, strings, strings, photo)
 
     @Test
     fun blankModeHasNoScene() {
@@ -74,12 +76,70 @@ class CardSceneBuilderTest {
     }
 
     @Test
+    fun counterTimeSourcesShowSegmentsClockAndRemaining() {
+        val day = build(
+            ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.DAY),
+            e = env.copy(minuteOfDay = 840, timeText = "14:00")
+        ) as CardScene.Counter
+        assertEquals("14:00", day.value)
+        assertEquals("58%", day.total)
+        assertEquals(24, day.segments)
+        assertEquals(14, day.filled)
+
+        val week = build(
+            ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.WEEK),
+            e = env.copy(dayOfWeekIndex = 3, minuteOfDay = 720)
+        ) as CardScene.Counter
+        assertEquals(7, week.segments)
+        assertEquals(3, week.filled)
+
+        val month = build(
+            ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.MONTH),
+            e = env.copy(dayOfMonth = 15, daysInMonth = 30, minuteOfDay = 0)
+        ) as CardScene.Counter
+        assertEquals(30, month.segments)
+        assertEquals(15, month.filled)
+
+        val year = build(
+            ExpandedCardConfig(mode = ExpandedCardMode.PROGRESS_COUNTER, counterSource = CounterSource.YEAR),
+            e = env.copy(dayOfYear = 183, daysInYear = 365, monthOfYear = 7)
+        ) as CardScene.Counter
+        assertEquals(12, year.segments)
+        assertEquals(7, year.filled)
+    }
+
+    @Test
     fun statsRingOnlyForPercentages() {
         val card = ExpandedCardConfig(mode = ExpandedCardMode.DEVICE_STATS, stats = listOf(StatMetric.BATTERY, StatMetric.FREE_RAM))
         val cells = (build(card) as CardScene.Stats).cells
         assertEquals(0.8f, cells[0].fraction)
         assertNull(cells[1].fraction)
         assertEquals("n/a", cells[1].value)
+
+        val ext = ExpandedCardConfig(
+            mode = ExpandedCardMode.DEVICE_STATS,
+            stats = listOf(StatMetric.STORAGE_FREE, StatMetric.THERMAL_STATE, StatMetric.BATTERY_POWER)
+        )
+        val extCells = (build(
+            ext,
+            photo = false
+        ) as CardScene.Stats).cells
+        assertNull(extCells[0].fraction)
+
+        val liveEnv = env.copy(
+            stats = DeviceStats(
+                batteryPowerWatts = -3.2f,
+                storageFreeGb = 128f,
+                storageTotalGb = 256f,
+                thermalStatus = 2
+            )
+        )
+        val liveCells = (CardSceneBuilder.build(ext, liveEnv, strings, strings, false) as CardScene.Stats).cells
+        assertEquals(0.5f, liveCells[0].fraction)
+        assertEquals("128.0 GB", liveCells[0].value)
+        assertEquals(0.5f, liveCells[1].fraction)
+        assertNull(liveCells[2].fraction)
+        assertEquals("-3.2W", liveCells[2].value)
     }
 
     @Test
@@ -97,6 +157,10 @@ class CardSceneBuilderTest {
         assertEquals(
             "{\"primaryData\":{\"type\":\"t_custom\",\"rvId\":\"layout/atoll_rv\"},\"attr\":{\"intent\":\"pi/atoll_tap\"}}",
             ColorOsCardJson.card(tappable = true)
+        )
+        assertEquals(
+            "{\"primaryData\":{\"type\":\"t_custom\",\"rvId\":\"layout/atoll_rv\"},\"attr\":{\"background\":\"colorInt/#88142C48\",\"bgLight\":\"false\"}}",
+            ColorOsCardJson.card(tappable = false, backgroundArgbHex = "88142C48")
         )
         assertFalse("attr" in ColorOsCardJson.card(tappable = false))
         assertFalse(ColorOsCardJson.tappable(ExpandedCardConfig(tapAction = TapAction.NONE)))

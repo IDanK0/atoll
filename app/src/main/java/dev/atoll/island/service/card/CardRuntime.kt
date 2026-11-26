@@ -8,12 +8,19 @@ import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.os.BatteryManager
+import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.os.StatFs
 import android.os.SystemClock
 import android.util.Log
+import dev.atoll.island.data.model.ChargeState
 import dev.atoll.island.domain.card.DeviceStats
 import kotlinx.coroutines.delay
+import java.io.File
+import kotlin.math.abs
 
 object DeviceStatsReader {
     // il broadcast della batteria è sticky: con receiver null si legge senza registrarsi
@@ -24,14 +31,84 @@ object DeviceStatsReader {
         val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
         val scale = battery?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
         val temp = battery?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE) ?: Int.MIN_VALUE
+        val status = battery?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val plugged = battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        val voltageMv = battery?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1) ?: -1
+
+        val bm = context.getSystemService(BatteryManager::class.java)
+        val rawCurrent = runCatching { bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) }
+            .getOrNull()?.takeIf { it != Int.MIN_VALUE }
+        val chargeState = resolveChargeState(status, plugged)
+        val powerWatts = if (rawCurrent != null && voltageMv > 0) {
+            val mag = (abs(rawCurrent) / 1_000_000f) * (voltageMv / 1000f)
+            when {
+                mag < 0.05f -> 0f
+                status == BatteryManager.BATTERY_STATUS_CHARGING -> mag
+                status == BatteryManager.BATTERY_STATUS_DISCHARGING -> -mag
+                // con carica piena o stato ignoto manteniamo il segno letto dal driver
+                else -> (rawCurrent / 1_000_000f) * (voltageMv / 1000f)
+            }
+        } else null
+
+        val chargeTimeMinutes = if (status == BatteryManager.BATTERY_STATUS_CHARGING) {
+            runCatching { bm?.computeChargeTimeRemaining() ?: -1L }.getOrDefault(-1L)
+                .takeIf { it > 0L }
+                ?.let { ((it + 30_000L) / 60_000L).toInt().coerceAtLeast(1) }
+        } else null
+
+        val cycles = if (Build.VERSION.SDK_INT >= 34) {
+            battery?.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1)?.takeIf { it >= 0 }
+        } else null
+
         val memory = runCatching {
             ActivityManager.MemoryInfo().also { context.getSystemService(ActivityManager::class.java)?.getMemoryInfo(it) }
         }.getOrNull()
+
+        val storage = runCatching { StatFs(Environment.getDataDirectory().path) }.getOrNull()
+        val storageFreeGb = storage?.availableBytes?.takeIf { it > 0 }?.let { it / 1_000_000_000f }
+        val storageTotalGb = storage?.totalBytes?.takeIf { it > 0 }?.let { it / 1_000_000_000f }
+
+        val thermal = runCatching { context.getSystemService(PowerManager::class.java)?.currentThermalStatus }
+            .getOrNull()?.takeIf { it >= 0 }
+
+        val uptimeMinutes = (SystemClock.elapsedRealtime() / 60_000L).coerceAtLeast(0L)
+
         return DeviceStats(
             batteryPercent = if (level >= 0 && scale > 0) level * 100 / scale else null,
+            batteryPowerWatts = powerWatts,
+            chargeState = chargeState,
+            chargeTimeMinutes = chargeTimeMinutes,
             batteryTempC = if (temp != Int.MIN_VALUE) temp / 10f else null,
-            freeRamGb = memory?.availMem?.takeIf { it > 0 }?.let { it / 1_000_000_000f }
+            batteryCycles = cycles,
+            freeRamGb = memory?.availMem?.takeIf { it > 0 }?.let { it / 1_000_000_000f },
+            storageFreeGb = storageFreeGb,
+            storageTotalGb = storageTotalGb,
+            cpuMaxMhz = readCpuMaxMhz(),
+            thermalStatus = thermal,
+            uptimeMinutes = uptimeMinutes
         )
+    }
+
+    private fun resolveChargeState(status: Int, plugged: Int): ChargeState? = when {
+        status == -1 -> null
+        status == BatteryManager.BATTERY_STATUS_FULL -> ChargeState.FULL
+        (plugged and BatteryManager.BATTERY_PLUGGED_AC) != 0 -> ChargeState.AC
+        (plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS) != 0 -> ChargeState.WIRELESS
+        (plugged and BatteryManager.BATTERY_PLUGGED_USB) != 0 -> ChargeState.USB
+        else -> ChargeState.DISCHARGING
+    }
+
+    private fun readCpuMaxMhz(): Int? {
+        var maxKhz = -1
+        for (cpu in 0 until 16) {
+            val file = File("/sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_cur_freq")
+            if (!file.exists()) {
+                if (cpu == 0) return null else break
+            }
+            val khz = runCatching { file.readText().trim().toIntOrNull() }.getOrNull()
+            if (khz != null && khz > maxKhz) maxKhz = khz
+        }
+        return if (maxKhz > 0) maxKhz / 1000 else null
     }
 }
 
