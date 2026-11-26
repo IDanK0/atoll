@@ -2,6 +2,7 @@ package dev.atoll.island.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
@@ -22,6 +23,9 @@ import androidx.compose.ui.unit.dp
 
 // 104 px su 1272, misurato su ColorOS 17
 private const val PILL_HEIGHT_RATIO = 0.082f
+
+// sul nero l'isola si confonde: come su iPhone le si dà un bordo sottile
+internal val IslandRim = Color(0x3DFFFFFF)
 
 // capsuleFraction = larghezza capsula / larghezza schermo
 @Composable
@@ -53,7 +57,8 @@ fun CapsulePreview(
                 .offset(y = top)
                 .width(maxOf(maxWidth * fraction, pillHeight))
                 .height(pillHeight)
-                .background(Color.Black, CircleShape),
+                .background(Color.Black, CircleShape)
+                .border(1.dp, IslandRim, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Box(

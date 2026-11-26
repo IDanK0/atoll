@@ -50,9 +50,6 @@ object CardCodec {
         CardAction.CounterPlus -> listOf("counter_plus")
         CardAction.CounterMinus -> listOf("counter_minus")
         CardAction.CounterReset -> listOf("counter_reset")
-        CardAction.TimerToggle -> listOf("timer_toggle")
-        CardAction.TimerAdd5Min -> listOf("timer_add")
-        CardAction.TimerReset -> listOf("timer_reset")
         CardAction.RollDice -> listOf("dice")
         CardAction.FlipCoin -> listOf("coin")
         CardAction.RandomNumber -> listOf("number")
@@ -70,9 +67,6 @@ object CardCodec {
         "counter_plus" -> CardAction.CounterPlus
         "counter_minus" -> CardAction.CounterMinus
         "counter_reset" -> CardAction.CounterReset
-        "timer_toggle" -> CardAction.TimerToggle
-        "timer_add" -> CardAction.TimerAdd5Min
-        "timer_reset" -> CardAction.TimerReset
         "dice" -> CardAction.RollDice
         "coin" -> CardAction.FlipCoin
         "number" -> CardAction.RandomNumber

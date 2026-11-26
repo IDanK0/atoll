@@ -14,9 +14,6 @@ import dev.atoll.island.domain.card.CardContent
 import dev.atoll.island.domain.card.CardEnvironment
 import dev.atoll.island.domain.card.CardStyle
 import dev.atoll.island.domain.card.ExpandedCardContentResolver
-import dev.atoll.island.domain.card.MetricValue
-import java.time.Duration
-import java.time.Instant
 import java.time.LocalTime
 
 object CardNotificationDecorator {
@@ -26,7 +23,6 @@ object CardNotificationDecorator {
         val time = LocalTime.now()
         val strings = AndroidCardStrings(context)
         return CardEnvironment(
-            nowMs = now,
             minuteOfDay = time.hour * 60 + time.minute,
             apiLevel = Build.VERSION.SDK_INT,
             stats = DeviceStatsReader.read(context),
@@ -78,11 +74,10 @@ object CardNotificationDecorator {
             }
         }
 
-        val timerRunning = config.card.timer.isRunning
         content.actions.forEachIndexed { slot, resolved ->
             val action = resolved.action
             val pending = CardIntents.forAction(context, action, slot) ?: return@forEachIndexed
-            val icon = IconCompat.createWithResource(context, AndroidCardStrings.actionIconRes(action, timerRunning))
+            val icon = IconCompat.createWithResource(context, AndroidCardStrings.actionIconRes(action))
             val compat = NotificationCompat.Action.Builder(icon, resolved.label, pending)
             if (action == CardAction.EditNoteInline) {
                 compat.addRemoteInput(
@@ -116,19 +111,7 @@ object CardNotificationDecorator {
         val style = NotificationCompat.MetricStyle()
         content.metrics.forEach { metric ->
             // ColorOS scrive l'unità tra parentesi dopo l'etichetta e la taglia: va nel valore
-            val value: NotificationCompat.Metric.MetricValue = when (val v = metric.value) {
-                is MetricValue.IntValue, is MetricValue.FloatValue, is MetricValue.TextValue ->
-                    NotificationCompat.Metric.FixedText(metric.valueText)
-                is MetricValue.Timer -> if (v.endAtMs > 0L) {
-                    NotificationCompat.Metric.TimeDifference.forTimer(
-                        Instant.ofEpochMilli(v.endAtMs), NotificationCompat.Metric.TimeDifference.FORMAT_CHRONOMETER
-                    )
-                } else {
-                    NotificationCompat.Metric.TimeDifference.forPausedTimer(
-                        Duration.ofMillis(v.pausedMs), NotificationCompat.Metric.TimeDifference.FORMAT_CHRONOMETER
-                    )
-                }
-            }
+            val value = NotificationCompat.Metric.FixedText(metric.valueText)
             style.addMetric(NotificationCompat.Metric(value, metric.label))
         }
         builder.setStyle(style)

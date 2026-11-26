@@ -26,13 +26,8 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
         is ToolResult.Number -> s(R.string.card_tool_name_number, result.min, result.max)
     }
 
-    override fun timerPausedShort() = s(R.string.card_timer_paused_short)
-    override fun timerReadyShort() = s(R.string.card_timer_ready_short)
-    override fun noteEmpty() = s(R.string.card_note_empty)
     override fun counterOf(goal: Int) = s(R.string.card_counter_of, goal)
-    override fun timerEnds(clock: String) = s(R.string.card_timer_running, clock)
     override fun toolsChoose() = s(R.string.card_tools_choose)
-    override fun actionLabel(action: CardAction) = actionLabel(action, false)
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
@@ -52,22 +47,9 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
     override fun temperature(celsius: Float) = s(R.string.card_temperature, celsius)
     override fun gigabytes(value: Float) = s(R.string.card_gigabytes, value)
     override fun unavailable() = s(R.string.card_unavailable)
-    override fun timerReady(duration: String) = s(R.string.card_timer_ready, duration)
-    override fun timerRunning(endsAt: String) = s(R.string.card_timer_running, endsAt)
-    override fun timerPaused(remaining: String) = s(R.string.card_timer_paused, remaining)
-    override fun timerFinished() = s(R.string.card_timer_finished)
-    override fun timerRemainingLabel() = s(R.string.card_timer_remaining)
     override fun toolsHint() = s(R.string.card_tools_hint)
 
-    override fun duration(ms: Long): String {
-        val total = (ms + 999L) / 1000L
-        val h = total / 3600
-        val m = total % 3600 / 60
-        val sec = total % 60
-        return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
-    }
-
-    override fun clock(epochMs: Long): String = DateFormat.getTimeFormat(context).format(Date(epochMs))
+    fun clock(epochMs: Long): String = DateFormat.getTimeFormat(context).format(Date(epochMs))
 
     fun date(epochMs: Long): String = DateUtils.formatDateTime(
         context, epochMs,
@@ -81,11 +63,10 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
     }
 
     // etichette corte: su ColorOS con tre pulsanti ci stanno circa 7 caratteri
-    override fun actionLabel(action: CardAction, timerRunning: Boolean): String = when (action) {
+    override fun actionLabel(action: CardAction): String = when (action) {
         is CardAction.LaunchApp -> action.appLabel.ifBlank { s(R.string.card_btn_app) }
         is CardAction.OpenUrl -> action.label.ifBlank { s(R.string.card_btn_url) }
         is CardAction.CopySnippet -> action.label.ifBlank { s(R.string.card_btn_copy) }
-        CardAction.TimerToggle -> s(if (timerRunning) R.string.card_action_pause else R.string.card_action_start)
         CardAction.ToggleFlashlight -> s(R.string.card_btn_flashlight)
         CardAction.MediaPlayPause -> s(R.string.card_btn_play_pause)
         CardAction.MediaNext -> s(R.string.card_btn_next)
@@ -114,16 +95,14 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
             CardAction.EditNoteInline -> R.string.card_action_edit
             CardAction.CounterPlus -> R.string.card_action_plus
             CardAction.CounterMinus -> R.string.card_action_minus
-            CardAction.CounterReset, CardAction.TimerReset -> R.string.card_action_reset
-            CardAction.TimerToggle -> R.string.card_action_start
-            CardAction.TimerAdd5Min -> R.string.card_action_add5
+            CardAction.CounterReset -> R.string.card_action_reset
             CardAction.RollDice -> R.string.card_action_dice
             CardAction.FlipCoin -> R.string.card_action_coin
             CardAction.RandomNumber -> R.string.card_action_number
             CardAction.RefreshStats -> R.string.card_action_refresh
         }
 
-        fun actionIconRes(action: CardAction, timerRunning: Boolean = false): Int = when (action) {
+        fun actionIconRes(action: CardAction): Int = when (action) {
             is CardAction.LaunchApp -> R.drawable.ic_act_launch
             is CardAction.OpenUrl -> R.drawable.ic_act_link
             is CardAction.CopySnippet -> R.drawable.ic_act_copy
@@ -133,9 +112,7 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
             CardAction.EditNoteInline -> R.drawable.ic_act_edit
             CardAction.CounterPlus -> R.drawable.ic_act_plus
             CardAction.CounterMinus -> R.drawable.ic_act_minus
-            CardAction.CounterReset, CardAction.TimerReset -> R.drawable.ic_act_reset
-            CardAction.TimerToggle -> if (timerRunning) R.drawable.ic_act_pause else R.drawable.ic_act_play
-            CardAction.TimerAdd5Min -> R.drawable.ic_act_add_time
+            CardAction.CounterReset -> R.drawable.ic_act_reset
             CardAction.RollDice -> R.drawable.ic_mode_tools
             CardAction.FlipCoin -> R.drawable.ic_act_coin
             CardAction.RandomNumber -> R.drawable.ic_act_number
@@ -148,7 +125,6 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
             ExpandedCardMode.SHORTCUT_DOCK -> R.drawable.ic_mode_dock
             ExpandedCardMode.DEVICE_STATS -> R.drawable.ic_mode_stats
             ExpandedCardMode.PROGRESS_COUNTER -> R.drawable.ic_mode_counter
-            ExpandedCardMode.FOCUS_TIMER -> R.drawable.ic_card_timer
             ExpandedCardMode.QUICK_TOOLS -> R.drawable.ic_mode_tools
         }
 
@@ -158,7 +134,6 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
             ExpandedCardMode.SHORTCUT_DOCK -> R.string.card_mode_dock
             ExpandedCardMode.DEVICE_STATS -> R.string.card_mode_stats
             ExpandedCardMode.PROGRESS_COUNTER -> R.string.card_mode_counter
-            ExpandedCardMode.FOCUS_TIMER -> R.string.card_mode_timer
             ExpandedCardMode.QUICK_TOOLS -> R.string.card_mode_tools
         }
     }

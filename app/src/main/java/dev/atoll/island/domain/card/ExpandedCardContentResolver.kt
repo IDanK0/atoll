@@ -11,14 +11,7 @@ enum class CardStyle { STANDARD, BIG_TEXT, PROGRESS, METRIC }
 
 data class CardProgress(val max: Int, val value: Int, val segments: List<Int>, val color: Int)
 
-sealed interface MetricValue {
-    data class IntValue(val value: Int, val unit: String) : MetricValue
-    data class FloatValue(val value: Float, val unit: String) : MetricValue
-    data class TextValue(val text: String) : MetricValue
-    data class Timer(val endAtMs: Long, val pausedMs: Long) : MetricValue
-}
-
-data class CardMetric(val label: String, val value: MetricValue, val valueText: String) {
+data class CardMetric(val label: String, val valueText: String) {
     val text: String get() = "$label $valueText"
 }
 
@@ -41,7 +34,6 @@ data class DeviceStats(
 )
 
 data class CardEnvironment(
-    val nowMs: Long,
     val minuteOfDay: Int,
     val apiLevel: Int,
     val stats: DeviceStats = DeviceStats(),
@@ -59,16 +51,9 @@ interface CardStrings {
     fun temperature(celsius: Float): String
     fun gigabytes(value: Float): String
     fun unavailable(): String
-    fun timerReady(duration: String): String
-    fun timerRunning(endsAt: String): String
-    fun timerPaused(remaining: String): String
-    fun timerFinished(): String
-    fun timerRemainingLabel(): String
-    fun duration(ms: Long): String
-    fun clock(epochMs: Long): String
     fun toolsHint(): String
     fun toolResult(result: ToolResult): String
-    fun actionLabel(action: CardAction, timerRunning: Boolean): String
+    fun actionLabel(action: CardAction): String
 }
 
 object CardText {
@@ -86,32 +71,29 @@ object ExpandedCardContentResolver {
 
     fun usesMetricStyle(config: ExpandedCardConfig, apiLevel: Int): Boolean =
         apiLevel >= 37 && config.useMetricStyle &&
-            (config.mode == ExpandedCardMode.DEVICE_STATS && config.stats.isNotEmpty() ||
-                config.mode == ExpandedCardMode.FOCUS_TIMER)
+            config.mode == ExpandedCardMode.DEVICE_STATS && config.stats.isNotEmpty()
 
     fun resolve(config: ExpandedCardConfig, env: CardEnvironment, strings: CardStrings): CardContent {
         val base = when (config.mode) {
             ExpandedCardMode.MINIMAL -> CardContent(title = env.minimalTitle, body = env.minimalText)
-            ExpandedCardMode.CUSTOM_NOTE -> note(config, strings)
+            ExpandedCardMode.CUSTOM_NOTE -> note(config)
             ExpandedCardMode.SHORTCUT_DOCK -> CardContent(title = config.dockTitle)
             ExpandedCardMode.DEVICE_STATS -> stats(config, env, strings)
             ExpandedCardMode.PROGRESS_COUNTER -> counter(config, env, strings)
-            ExpandedCardMode.FOCUS_TIMER -> timer(config, env, strings)
             ExpandedCardMode.QUICK_TOOLS -> CardContent(
                 title = CardText.BLANK,
                 body = config.lastTool?.let(strings::toolResult) ?: strings.toolsHint(),
                 style = CardStyle.BIG_TEXT
             )
         }
-        val timerRunning = config.timer.isRunning
         return base.copy(
             title = CardText.nonBlankTitle(base.title),
             subText = if (config.mode == ExpandedCardMode.MINIMAL) null else env.confirmation ?: base.subText,
-            actions = ActionSlots.resolve(config).map { ResolvedAction(it, strings.actionLabel(it, timerRunning)) }
+            actions = ActionSlots.resolve(config).map { ResolvedAction(it, strings.actionLabel(it)) }
         )
     }
 
-    private fun note(config: ExpandedCardConfig, strings: CardStrings): CardContent {
+    private fun note(config: ExpandedCardConfig): CardContent {
         val body = config.noteBody.trim().ifEmpty { null }
         return CardContent(
             title = config.noteTitle,
@@ -135,13 +117,6 @@ object ExpandedCardContentResolver {
 
     private fun metric(metric: StatMetric, env: CardEnvironment, strings: CardStrings): CardMetric {
         val label = if (metric == StatMetric.DATE_TIME) env.dateText else strings.statLabel(metric)
-        val value: MetricValue = when (metric) {
-            StatMetric.BATTERY -> env.stats.batteryPercent?.let { MetricValue.IntValue(it, "%") }
-            StatMetric.BATTERY_TEMP -> env.stats.batteryTempC?.let { MetricValue.FloatValue(it, "\u00B0C") }
-            StatMetric.DAY_PROGRESS -> MetricValue.IntValue(CardText.dayPercent(env.minuteOfDay), "%")
-            StatMetric.FREE_RAM -> env.stats.freeRamGb?.let { MetricValue.FloatValue(it, "GB") }
-            StatMetric.DATE_TIME -> MetricValue.TextValue(env.timeText)
-        } ?: MetricValue.TextValue(strings.unavailable())
         val shown = when (metric) {
             StatMetric.BATTERY -> env.stats.batteryPercent?.let(strings::percent)
             StatMetric.BATTERY_TEMP -> env.stats.batteryTempC?.let(strings::temperature)
@@ -149,7 +124,7 @@ object ExpandedCardContentResolver {
             StatMetric.FREE_RAM -> env.stats.freeRamGb?.let(strings::gigabytes)
             StatMetric.DATE_TIME -> env.timeText
         } ?: strings.unavailable()
-        return CardMetric(label, value, shown)
+        return CardMetric(label, shown)
     }
 
     private fun counter(config: ExpandedCardConfig, env: CardEnvironment, strings: CardStrings): CardContent {
@@ -179,35 +154,6 @@ object ExpandedCardContentResolver {
                 segments = if (c.goal <= MAX_SEGMENTS) List(c.goal) { 1 } else listOf(c.goal),
                 color = config.accentColor
             )
-        )
-    }
-
-    private fun timer(config: ExpandedCardConfig, env: CardEnvironment, strings: CardStrings): CardContent {
-        val t = config.timer
-        val remaining = t.remainingAt(env.nowMs)
-        val body = when {
-            t.isRunning -> strings.timerRunning(strings.clock(t.endAtMs))
-            t.isFinished -> strings.timerFinished()
-            remaining < t.totalMs -> strings.timerPaused(strings.duration(remaining))
-            else -> strings.timerReady(strings.duration(t.totalMs))
-        }
-        val title = CardText.BLANK
-        if (usesMetricStyle(config, env.apiLevel)) {
-            val value = MetricValue.Timer(endAtMs = if (t.isRunning) t.endAtMs else 0L, pausedMs = remaining)
-            return CardContent(
-                title = title,
-                body = body,
-                style = CardStyle.METRIC,
-                metrics = listOf(CardMetric(strings.timerRemainingLabel(), value, strings.duration(remaining)))
-            )
-        }
-        val totalSec = (t.totalMs / 1000L).toInt().coerceAtLeast(1)
-        val elapsedSec = ((t.totalMs - remaining) / 1000L).toInt().coerceIn(0, totalSec)
-        return CardContent(
-            title = title,
-            body = body,
-            style = CardStyle.PROGRESS,
-            progress = CardProgress(totalSec, elapsedSec, listOf(totalSec), config.accentColor)
         )
     }
 

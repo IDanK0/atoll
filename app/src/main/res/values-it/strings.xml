@@ -217,7 +217,6 @@
     <string name="card_mode_dock">Scorciatoie</string>
     <string name="card_mode_stats">Dati del telefono</string>
     <string name="card_mode_counter">Contatore</string>
-    <string name="card_mode_timer">Timer</string>
     <string name="card_mode_tools">Estrazioni</string>
     <string name="card_field_title">Titolo</string>
     <string name="card_field_body">Testo</string>
@@ -235,8 +234,6 @@
     <string name="card_counter_custom">Contatore</string>
     <string name="card_counter_day">Giornata</string>
     <string name="card_goal">Obiettivo</string>
-    <string name="card_timer_length">Durata</string>
-    <string name="card_timer_minutes">%1$d min</string>
     <string name="card_range_min">Da</string>
     <string name="card_range_max">A</string>
     <string name="card_icon_photo_failed">Non sono riuscito a usare quella foto.</string>
@@ -258,11 +255,6 @@
     <string name="card_temperature">%1$.1f °C</string>
     <string name="card_gigabytes">%1$.1f GB</string>
     <string name="card_unavailable">n.d.</string>
-    <string name="card_timer_ready">Pronto: %1$s</string>
-    <string name="card_timer_running">Finisce alle %1$s</string>
-    <string name="card_timer_paused">In pausa, mancano %1$s</string>
-    <string name="card_timer_finished">Tempo scaduto</string>
-    <string name="card_timer_remaining">Mancano</string>
     <string name="card_tools_hint">Tocca un pulsante qui sotto.</string>
     <string name="card_tool_dice">Dado: %1$d</string>
     <string name="card_tool_heads">Moneta: testa</string>
@@ -278,9 +270,6 @@
     <string name="card_action_plus">\+1</string>
     <string name="card_action_minus">−1</string>
     <string name="card_action_reset">Azzera</string>
-    <string name="card_action_start">Avvia</string>
-    <string name="card_action_pause">Pausa</string>
-    <string name="card_action_add5">\+5 min</string>
     <string name="card_action_dice">Tira il dado</string>
     <string name="card_action_coin">Lancia la moneta</string>
     <string name="card_action_number">Numero a caso</string>
@@ -303,15 +292,13 @@
     <string name="card_adv_promotable">Si può promuovere</string>
     <string name="card_adv_flag">FLAG_PROMOTED_ONGOING</string>
     <string name="card_adv_compat">Usa MetricStyle</string>
-    <string name="card_adv_compat_help">Timer dal vivo e valori affiancati, ma ColorOS aggiunge l’icona dell’app alla scheda.</string>
+    <string name="card_adv_compat_help">Valori affiancati, ma ColorOS aggiunge l’icona dell’app alla scheda.</string>
     <string name="card_adv_compat_unsupported">MetricStyle richiede Android 17 (API 37).</string>
     <string name="card_tool_value_heads">Testa</string>
     <string name="card_tool_value_tails">Croce</string>
     <string name="card_tool_name_dice">Dado</string>
     <string name="card_tool_name_coin">Moneta</string>
     <string name="card_tool_name_number">Numero da %1$d a %2$d</string>
-    <string name="card_timer_paused_short">In pausa</string>
-    <string name="card_timer_ready_short">Pronto</string>
     <string name="card_dock_empty">Aggiungi app e azioni da Atoll</string>
     <string name="card_note_empty">Scrivi la nota da Atoll</string>
     <string name="card_photo_cd">Foto della nota, tocca per aprirla</string>

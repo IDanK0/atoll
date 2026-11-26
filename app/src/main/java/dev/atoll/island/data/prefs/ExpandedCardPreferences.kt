@@ -15,7 +15,6 @@ import dev.atoll.island.data.model.ExpandedCardMode
 import dev.atoll.island.data.model.LargeIconConfig
 import dev.atoll.island.data.model.LargeIconType
 import dev.atoll.island.data.model.TapAction
-import dev.atoll.island.data.model.TimerState
 import dev.atoll.island.domain.card.CardCodec
 import dev.atoll.island.domain.card.CounterReducer
 import dev.atoll.island.domain.card.Randomizer
@@ -35,10 +34,6 @@ internal object ExpandedCardPreferences {
     private val counterCount = intPreferencesKey("card_counter_count")
     private val counterGoal = intPreferencesKey("card_counter_goal")
     private val accent = intPreferencesKey("card_accent")
-    private val timerDuration = longPreferencesKey("card_timer_duration")
-    private val timerTotal = longPreferencesKey("card_timer_total")
-    private val timerRemaining = longPreferencesKey("card_timer_remaining")
-    private val timerEnd = longPreferencesKey("card_timer_end")
     private val randomMin = intPreferencesKey("card_random_min")
     private val randomMax = intPreferencesKey("card_random_max")
     private val lastTool = stringPreferencesKey("card_last_tool")
@@ -53,7 +48,6 @@ internal object ExpandedCardPreferences {
     fun read(prefs: Preferences): ExpandedCardConfig {
         val defaults = ExpandedCardConfig()
         val goal = (prefs[counterGoal] ?: defaults.counter.goal).coerceIn(CounterReducer.MIN_GOAL, CounterReducer.MAX_GOAL)
-        val duration = (prefs[timerDuration] ?: TimerState.DEFAULT_DURATION_MS).coerceAtLeast(TimerState.MINUTE_MS)
         return ExpandedCardConfig(
             mode = ExpandedCardMode.fromName(prefs[mode]),
             noteTitle = prefs[noteTitle] ?: "",
@@ -68,12 +62,6 @@ internal object ExpandedCardPreferences {
             counter = CounterState(count = (prefs[counterCount] ?: 0).coerceIn(0, goal), goal = goal),
             // il vecchio indaco predefinito diventa l'accento di sistema
             accentColor = (prefs[accent] ?: defaults.accentColor).let { if (it == CardColors.BADGE) CardColors.DEFAULT else it },
-            timer = TimerState(
-                durationMs = duration,
-                totalMs = (prefs[timerTotal] ?: duration).coerceAtLeast(0L),
-                remainingMs = (prefs[timerRemaining] ?: duration).coerceAtLeast(0L),
-                endAtMs = (prefs[timerEnd] ?: 0L).coerceAtLeast(0L)
-            ),
             randomMin = prefs[randomMin] ?: defaults.randomMin,
             randomMax = prefs[randomMax] ?: defaults.randomMax,
             lastTool = CardCodec.decodeTool(prefs[lastTool]),
@@ -104,10 +92,6 @@ internal object ExpandedCardPreferences {
         prefs[counterGoal] = card.counter.goal
         prefs[counterCount] = card.counter.count
         prefs[accent] = card.accentColor
-        prefs[timerDuration] = card.timer.durationMs
-        prefs[timerTotal] = card.timer.totalMs
-        prefs[timerRemaining] = card.timer.remainingMs
-        prefs[timerEnd] = card.timer.endAtMs
         prefs[randomMin] = min
         prefs[randomMax] = max
         prefs[lastTool] = CardCodec.encodeTool(card.lastTool)

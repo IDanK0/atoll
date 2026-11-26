@@ -33,8 +33,6 @@ import dev.atoll.island.data.prefs.LiveAlertPreferencesRepository
 import dev.atoll.island.domain.AndroidDisplayMetricsProvider
 import dev.atoll.island.domain.card.ActionSlots
 import dev.atoll.island.domain.card.CardContent
-import dev.atoll.island.domain.card.ExpandedCardContentResolver
-import dev.atoll.island.domain.card.TimerReducer
 import dev.atoll.island.service.card.TorchController
 import dev.atoll.island.ui.MainActivity
 import kotlinx.coroutines.Job
@@ -62,8 +60,6 @@ class AtollLiveAlertService : LifecycleService() {
     private var lastCardContent: CardContent? = null
     private var batteryRegistered = false
     private var tickRegistered = false
-    private var timerJob: Job? = null
-    private var timerEndScheduled = 0L
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = refreshCardIfChanged()
@@ -297,12 +293,10 @@ class AtollLiveAlertService : LifecycleService() {
     // batteria e minuti solo quando la scheda li mostra, così il consumo resta quasi zero
     private fun updateCardMonitors(config: LiveAlertConfig) {
         val card = config.card
-        val usesMetric = ExpandedCardContentResolver.usesMetricStyle(card, Build.VERSION.SDK_INT)
         val wantBattery = config.enabled && card.mode == ExpandedCardMode.DEVICE_STATS
         val wantTick = config.enabled && when (card.mode) {
             ExpandedCardMode.DEVICE_STATS -> card.stats.any { it == StatMetric.DAY_PROGRESS || it == StatMetric.DATE_TIME }
             ExpandedCardMode.PROGRESS_COUNTER -> card.counterSource == CounterSource.DAY
-            ExpandedCardMode.FOCUS_TIMER -> card.timer.isRunning && !usesMetric
             else -> false
         }
         if (wantBattery != batteryRegistered) {
@@ -326,23 +320,6 @@ class AtollLiveAlertService : LifecycleService() {
             tickRegistered = wantTick
         }
 
-        val endAt = if (config.enabled && card.mode == ExpandedCardMode.FOCUS_TIMER && card.timer.isRunning) {
-            card.timer.endAtMs
-        } else {
-            0L
-        }
-        if (endAt != timerEndScheduled) {
-            timerJob?.cancel()
-            timerEndScheduled = endAt
-            if (endAt > 0L) {
-                timerJob = lifecycleScope.launch {
-                    delay((endAt - System.currentTimeMillis()).coerceAtLeast(0L))
-                    LiveAlertPreferencesRepository.getInstance(applicationContext).updateCard {
-                        it.copy(timer = TimerReducer.finishIfDue(it.timer, System.currentTimeMillis()))
-                    }
-                }
-            }
-        }
         if (CardAction.ToggleFlashlight in ActionSlots.resolve(card)) TorchController.ensureRegistered(this)
     }
 
@@ -351,9 +328,6 @@ class AtollLiveAlertService : LifecycleService() {
         if (tickRegistered) runCatching { unregisterReceiver(tickReceiver) }
         batteryRegistered = false
         tickRegistered = false
-        timerJob?.cancel()
-        timerJob = null
-        timerEndScheduled = 0L
     }
 
     private fun refreshCardIfChanged() {

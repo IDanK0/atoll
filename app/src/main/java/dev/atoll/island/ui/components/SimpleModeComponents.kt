@@ -2,6 +2,7 @@ package dev.atoll.island.ui.components
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -185,6 +186,7 @@ private fun PresetTile(
                         .width(maxWidth * (result.estimatedWidthDp / screenWidthDp).coerceIn(0.1f, 1f))
                         .height(12.dp)
                         .background(Color.Black, CircleShape)
+                        .border(1.dp, IslandRim, CircleShape)
                 )
             }
             Text(stringResource(preset.simpleTitleRes()), style = MaterialTheme.typography.titleSmall)

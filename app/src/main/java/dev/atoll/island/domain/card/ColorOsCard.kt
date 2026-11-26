@@ -29,19 +29,8 @@ sealed interface CardScene {
         val buttons: List<SceneButton>
     ) : CardScene
 
-    data class Timer(
-        val state: TimerUi,
-        val endAtMs: Long,
-        val clock: String,
-        val caption: String,
-        val fraction: Float,
-        val buttons: List<SceneButton>
-    ) : CardScene
-
     data class Tools(val result: ToolResult?, val value: String?, val caption: String, val buttons: List<SceneButton>) : CardScene
 }
-
-enum class TimerUi { READY, RUNNING, PAUSED, FINISHED }
 
 data class SceneButton(val slot: Int, val action: CardAction, val label: String, val primary: Boolean = false)
 
@@ -50,14 +39,9 @@ data class StatCell(val metric: StatMetric, val value: String, val caption: Stri
 
 interface SceneStrings {
     fun counterOf(goal: Int): String
-    fun timerEnds(clock: String): String
-    fun timerPausedShort(): String
-    fun timerReadyShort(): String
-    fun timerFinished(): String
     fun toolValue(result: ToolResult): String
     fun toolName(result: ToolResult): String
     fun toolsChoose(): String
-    fun noteEmpty(): String
     fun actionLabel(action: CardAction): String
 }
 
@@ -82,7 +66,6 @@ object CardSceneBuilder {
         )
         ExpandedCardMode.DEVICE_STATS -> CardScene.Stats(StatSelection.sanitize(card.stats).map { cell(it, env, strings) })
         ExpandedCardMode.PROGRESS_COUNTER -> counter(card, env, strings, scene)
-        ExpandedCardMode.FOCUS_TIMER -> timer(card, env, strings, scene)
         ExpandedCardMode.QUICK_TOOLS -> CardScene.Tools(
             result = card.lastTool,
             value = card.lastTool?.let(scene::toolValue),
@@ -143,46 +126,6 @@ object CardSceneBuilder {
             complete = complete,
             buttons = buttons
         )
-    }
-
-    private fun timer(card: ExpandedCardConfig, env: CardEnvironment, strings: CardStrings, scene: SceneStrings): CardScene.Timer {
-        val t = card.timer
-        val remaining = t.remainingAt(env.nowMs)
-        val state = when {
-            t.isRunning -> TimerUi.RUNNING
-            t.isFinished -> TimerUi.FINISHED
-            remaining < t.totalMs -> TimerUi.PAUSED
-            else -> TimerUi.READY
-        }
-        val caption = when (state) {
-            TimerUi.RUNNING -> scene.timerEnds(strings.clock(t.endAtMs))
-            TimerUi.PAUSED -> scene.timerPausedShort()
-            TimerUi.READY -> scene.timerReadyShort()
-            TimerUi.FINISHED -> scene.timerFinished()
-        }
-        val second = when (state) {
-            TimerUi.RUNNING, TimerUi.READY -> CardAction.TimerAdd5Min
-            TimerUi.PAUSED, TimerUi.FINISHED -> CardAction.TimerReset
-        }
-        return CardScene.Timer(
-            state = state,
-            endAtMs = t.endAtMs,
-            clock = formatClock(if (state == TimerUi.READY) t.totalMs else remaining),
-            caption = caption,
-            fraction = TimerReducer.elapsedFraction(t, env.nowMs),
-            buttons = listOf(
-                SceneButton(0, CardAction.TimerToggle, scene.actionLabel(CardAction.TimerToggle), primary = true),
-                SceneButton(1, second, scene.actionLabel(second))
-            )
-        )
-    }
-
-    fun formatClock(ms: Long): String {
-        val total = (ms + 999L) / 1000L
-        val h = total / 3600
-        val m = total % 3600 / 60
-        val s = total % 60
-        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
     }
 
     private const val MAX_SEGMENTS = 20

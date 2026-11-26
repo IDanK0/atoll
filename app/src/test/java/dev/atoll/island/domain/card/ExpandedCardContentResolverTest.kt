@@ -6,7 +6,6 @@ import dev.atoll.island.data.model.CounterState
 import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.ExpandedCardMode
 import dev.atoll.island.data.model.StatMetric
-import dev.atoll.island.data.model.TimerState
 import dev.atoll.island.data.model.ToolResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -22,20 +21,12 @@ class ExpandedCardContentResolverTest {
         override fun temperature(celsius: Float) = "$celsius C"
         override fun gigabytes(value: Float) = "$value GB"
         override fun unavailable() = "n/a"
-        override fun timerReady(duration: String) = "ready $duration"
-        override fun timerRunning(endsAt: String) = "ends $endsAt"
-        override fun timerPaused(remaining: String) = "paused $remaining"
-        override fun timerFinished() = "done"
-        override fun timerRemainingLabel() = "left"
-        override fun duration(ms: Long) = "${ms / 1000}s"
-        override fun clock(epochMs: Long) = "t$epochMs"
         override fun toolsHint() = "hint"
         override fun toolResult(result: ToolResult) = result.toString()
-        override fun actionLabel(action: CardAction, timerRunning: Boolean) = action.toString()
+        override fun actionLabel(action: CardAction) = action.toString()
     }
 
     private val env = CardEnvironment(
-        nowMs = 0L,
         minuteOfDay = 720,
         apiLevel = 37,
         stats = DeviceStats(batteryPercent = 84, batteryTempC = 31.5f, freeRamGb = 5.2f),
@@ -71,7 +62,7 @@ class ExpandedCardContentResolverTest {
 
     @Test
     fun minimalIsTheOldBlankCard() {
-        val content = resolve(ExpandedCardConfig(), env.copy(confirmation = "Copied"))
+        val content = resolve(ExpandedCardConfig(mode = ExpandedCardMode.MINIMAL), env.copy(confirmation = "Copied"))
         assertEquals(CardText.BLANK, content.title)
         assertEquals(CardText.BLANK, content.body)
         assertNull(content.subText)
@@ -106,8 +97,7 @@ class ExpandedCardContentResolverTest {
         val metric = resolve(stats)
         assertEquals(CardStyle.METRIC, metric.style)
         assertEquals(3, metric.metrics.size)
-        assertEquals(MetricValue.IntValue(84, "%"), metric.metrics[0].value)
-        assertEquals("84%", metric.metrics[0].valueText)
+        assertEquals(CardMetric("BATTERY", "84%"), metric.metrics[0])
 
         assertEquals(CardStyle.BIG_TEXT, resolve(stats, env.copy(apiLevel = 36)).style)
         val compat = resolve(stats.copy(useMetricStyle = false))
@@ -145,28 +135,6 @@ class ExpandedCardContentResolverTest {
         assertEquals(360, content.progress?.value)
         assertEquals(1440, content.progress?.segments?.sum())
         assertTrue(content.actions.isEmpty())
-    }
-
-    @Test
-    fun timerTextFollowsItsState() {
-        val minute = TimerState.MINUTE_MS
-        val ready = ExpandedCardConfig(mode = ExpandedCardMode.FOCUS_TIMER)
-        assertEquals("ready 1500s", resolve(ready).body)
-
-        val running = ready.copy(timer = TimerReducer.toggle(ready.timer, 0L), useMetricStyle = true)
-        assertEquals("ends t${25 * minute}", resolve(running).body)
-        assertEquals(CardStyle.METRIC, resolve(running).style)
-        assertEquals(MetricValue.Timer(25 * minute, 25 * minute), resolve(running).metrics.single().value)
-
-        val fallback = resolve(running.copy(useMetricStyle = false), env.copy(nowMs = 5 * minute))
-        assertEquals(CardStyle.PROGRESS, fallback.style)
-        assertEquals(1500, fallback.progress?.max)
-        assertEquals(300, fallback.progress?.value)
-
-        val paused = running.copy(timer = TimerReducer.toggle(running.timer, 10 * minute))
-        assertEquals("paused 900s", resolve(paused).body)
-        val done = running.copy(timer = TimerReducer.finishIfDue(running.timer, 30 * minute))
-        assertEquals("done", resolve(done).body)
     }
 
     @Test

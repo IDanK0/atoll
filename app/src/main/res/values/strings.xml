@@ -217,7 +217,6 @@
     <string name="card_mode_dock">Shortcuts</string>
     <string name="card_mode_stats">Phone stats</string>
     <string name="card_mode_counter">Counter</string>
-    <string name="card_mode_timer">Focus timer</string>
     <string name="card_mode_tools">Random</string>
     <string name="card_field_title">Title</string>
     <string name="card_field_body">Text</string>
@@ -235,8 +234,6 @@
     <string name="card_counter_custom">Counter</string>
     <string name="card_counter_day">Day progress</string>
     <string name="card_goal">Goal</string>
-    <string name="card_timer_length">Length</string>
-    <string name="card_timer_minutes">%1$d min</string>
     <string name="card_range_min">From</string>
     <string name="card_range_max">To</string>
     <string name="card_icon_photo_failed">Couldn’t use that photo.</string>
@@ -258,11 +255,6 @@
     <string name="card_temperature">%1$.1f °C</string>
     <string name="card_gigabytes">%1$.1f GB</string>
     <string name="card_unavailable">n/a</string>
-    <string name="card_timer_ready">Ready: %1$s</string>
-    <string name="card_timer_running">Ends at %1$s</string>
-    <string name="card_timer_paused">Paused, %1$s left</string>
-    <string name="card_timer_finished">Time’s up</string>
-    <string name="card_timer_remaining">Left</string>
     <string name="card_tools_hint">Tap a button below.</string>
     <string name="card_tool_dice">Dice: %1$d</string>
     <string name="card_tool_heads">Coin: heads</string>
@@ -278,9 +270,6 @@
     <string name="card_action_plus">\+1</string>
     <string name="card_action_minus">−1</string>
     <string name="card_action_reset">Reset</string>
-    <string name="card_action_start">Start</string>
-    <string name="card_action_pause">Pause</string>
-    <string name="card_action_add5">\+5 min</string>
     <string name="card_action_dice">Roll dice</string>
     <string name="card_action_coin">Flip coin</string>
     <string name="card_action_number">Random number</string>
@@ -303,15 +292,13 @@
     <string name="card_adv_promotable">Can be promoted</string>
     <string name="card_adv_flag">FLAG_PROMOTED_ONGOING</string>
     <string name="card_adv_compat">Use MetricStyle</string>
-    <string name="card_adv_compat_help">Live timer and side-by-side values, but ColorOS adds the app icon to the card.</string>
+    <string name="card_adv_compat_help">Side-by-side values, but ColorOS adds the app icon to the card.</string>
     <string name="card_adv_compat_unsupported">MetricStyle needs Android 17 (API 37).</string>
     <string name="card_tool_value_heads">Heads</string>
     <string name="card_tool_value_tails">Tails</string>
     <string name="card_tool_name_dice">Dice</string>
     <string name="card_tool_name_coin">Coin</string>
     <string name="card_tool_name_number">Number from %1$d to %2$d</string>
-    <string name="card_timer_paused_short">Paused</string>
-    <string name="card_timer_ready_short">Ready</string>
     <string name="card_dock_empty">Add apps and actions in Atoll</string>
     <string name="card_note_empty">Write the note in Atoll</string>
     <string name="card_photo_cd">Note photo, tap to open it</string>

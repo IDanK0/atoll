@@ -6,7 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.os.SystemClock
+import android.graphics.Typeface
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.graphics.createBitmap
@@ -16,7 +16,6 @@ import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.ToolResult
 import dev.atoll.island.domain.card.CardScene
 import dev.atoll.island.domain.card.SceneButton
-import dev.atoll.island.domain.card.TimerUi
 
 // le schede disegnate da Atoll: stile scuro e pulsanti tondi come quelli di ColorOS
 object CardViews {
@@ -34,7 +33,6 @@ object CardViews {
             is CardScene.Dock -> dock(context, scene)
             is CardScene.Stats -> stats(context, scene, accent)
             is CardScene.Counter -> counter(context, scene, accent)
-            is CardScene.Timer -> timer(context, scene, accent)
             is CardScene.Tools -> tools(context, scene)
         }
     }
@@ -143,7 +141,7 @@ object CardViews {
                 setImageViewResource(icon, AndroidCardStrings.actionIconRes(b.action))
                 tint(icon, "setImageTintList", ON_ACCENT)
             } else {
-                setImageViewResource(icon, lightIcon(b.action, false))
+                setImageViewResource(icon, lightIcon(b.action))
             }
             click(context, button, b)
         }
@@ -154,35 +152,16 @@ object CardViews {
         }
     }
 
-    private fun timer(context: Context, scene: CardScene.Timer, accent: Int): RemoteViews = rv(context, R.layout.card_rv_timer).apply {
-        if (scene.state == TimerUi.RUNNING) {
-            val base = SystemClock.elapsedRealtime() + (scene.endAtMs - System.currentTimeMillis())
-            setChronometer(R.id.tm_chrono, base, null, true)
-            setChronometerCountDown(R.id.tm_chrono, true)
-            setViewVisibility(R.id.tm_chrono, View.VISIBLE)
-            setViewVisibility(R.id.tm_static, View.GONE)
-        } else {
-            setTextViewText(R.id.tm_static, scene.clock)
-        }
-        setTextViewText(R.id.tm_caption, scene.caption)
-        scene.buttons.getOrNull(0)?.let { b ->
-            tint(R.id.tm_btn_0, "setBackgroundTintList", accent)
-            setImageViewResource(R.id.tm_btn_0_icon, if (scene.state == TimerUi.RUNNING) R.drawable.ic_act_pause else R.drawable.ic_act_play)
-            tint(R.id.tm_btn_0_icon, "setImageTintList", ON_ACCENT)
-            click(context, R.id.tm_btn_0, b)
-        }
-        scene.buttons.getOrNull(1)?.let { b ->
-            setImageViewResource(R.id.tm_btn_1_icon, lightIcon(b.action, false))
-            click(context, R.id.tm_btn_1, b)
-        }
-        setProgressBar(R.id.tm_bar, 1000, (scene.fraction * 1000).toInt(), false)
-        tint(R.id.tm_bar, "setProgressTintList", accent)
-    }
-
     private fun tools(context: Context, scene: CardScene.Tools): RemoteViews = rv(context, R.layout.card_rv_tools).apply {
         val result = scene.result
-        if (result is ToolResult.Dice) {
-            setImageViewBitmap(R.id.tl_die, die(result.value, (52 * context.resources.displayMetrics.density).toInt()))
+        val badge = (44 * context.resources.displayMetrics.density).toInt()
+        when (result) {
+            is ToolResult.Dice -> die(result.value, badge)
+            is ToolResult.Coin -> coin(scene.value.orEmpty().take(1).uppercase(), badge)
+            is ToolResult.Number -> tile("#", badge)
+            null -> null
+        }?.let {
+            setImageViewBitmap(R.id.tl_die, it)
             setViewVisibility(R.id.tl_die, View.VISIBLE)
         }
         scene.value?.let {
@@ -199,12 +178,10 @@ object CardViews {
     }
 
     // icone chiare (ic_cbtn_*) per i pulsanti tondi trasparenti
-    private fun lightIcon(action: CardAction, running: Boolean): Int = when (action) {
+    private fun lightIcon(action: CardAction): Int = when (action) {
         CardAction.CounterPlus -> R.drawable.ic_cbtn_plus
         CardAction.CounterMinus -> R.drawable.ic_cbtn_minus
-        CardAction.CounterReset, CardAction.TimerReset -> R.drawable.ic_cbtn_reset
-        CardAction.TimerAdd5Min -> R.drawable.ic_cbtn_add_time
-        CardAction.TimerToggle -> if (running) R.drawable.ic_cbtn_pause else R.drawable.ic_cbtn_play
+        CardAction.CounterReset -> R.drawable.ic_cbtn_reset
         else -> R.drawable.ic_cbtn_launch
     }
 
@@ -226,6 +203,40 @@ object CardViews {
             canvas.drawArc(box, -90f, 360f * fraction.coerceIn(0f, 1f), false, paint)
         }
         return out
+    }
+
+    // moneta dorata con l'iniziale del lato uscito
+    fun coin(letter: String, size: Int): Bitmap {
+        val out = createBitmap(size, size)
+        val canvas = Canvas(out)
+        val c = size / 2f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFE9C46A.toInt() }
+        canvas.drawCircle(c, c, c, paint)
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = size * 0.05f
+        paint.color = 0xFFB8892F.toInt()
+        canvas.drawCircle(c, c, c * 0.8f, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = 0xFF4A3608.toInt()
+        drawCentered(canvas, letter, size, paint)
+        return out
+    }
+
+    fun tile(symbol: String, size: Int): Bitmap {
+        val out = createBitmap(size, size)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF2FFFFFF.toInt() }
+        canvas.drawRoundRect(RectF(0f, 0f, size.toFloat(), size.toFloat()), size * 0.24f, size * 0.24f, paint)
+        paint.color = ON_ACCENT
+        drawCentered(canvas, symbol, size, paint)
+        return out
+    }
+
+    private fun drawCentered(canvas: Canvas, text: String, size: Int, paint: Paint) {
+        paint.textAlign = Paint.Align.CENTER
+        paint.textSize = size * 0.5f
+        paint.typeface = Typeface.DEFAULT_BOLD
+        canvas.drawText(text, size / 2f, size / 2f - (paint.descent() + paint.ascent()) / 2, paint)
     }
 
     // faccia del dado con i punti, più leggibile di un numero da solo

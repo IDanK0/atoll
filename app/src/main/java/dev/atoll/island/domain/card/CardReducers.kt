@@ -6,7 +6,6 @@ import dev.atoll.island.data.model.CounterState
 import dev.atoll.island.data.model.ExpandedCardConfig
 import dev.atoll.island.data.model.ExpandedCardMode
 import dev.atoll.island.data.model.StatMetric
-import dev.atoll.island.data.model.TimerState
 import dev.atoll.island.data.model.ToolResult
 import kotlin.random.Random
 
@@ -22,51 +21,6 @@ object CounterReducer {
         val clamped = goal.coerceIn(MIN_GOAL, MAX_GOAL)
         return state.copy(goal = clamped, count = state.count.coerceIn(0, clamped))
     }
-}
-
-object TimerReducer {
-    const val MIN_MINUTES = 1
-    const val MAX_MINUTES = 180
-    private const val STEP_MS = 5 * TimerState.MINUTE_MS
-    private const val MAX_TOTAL_MS = 12 * 60 * TimerState.MINUTE_MS
-
-    fun toggle(state: TimerState, nowMs: Long): TimerState = when {
-        state.isRunning -> state.copy(remainingMs = state.remainingAt(nowMs), endAtMs = 0L)
-        // finito: si riparte da capo
-        state.isFinished -> start(reset(state), nowMs)
-        else -> start(state, nowMs)
-    }
-
-    fun addFiveMinutes(state: TimerState, nowMs: Long): TimerState {
-        val remaining = state.remainingAt(nowMs)
-        val added = (remaining + STEP_MS).coerceAtMost(MAX_TOTAL_MS) - remaining
-        val total = (state.totalMs.coerceAtLeast(remaining) + added).coerceAtMost(MAX_TOTAL_MS)
-        return if (state.isRunning) {
-            state.copy(totalMs = total, endAtMs = nowMs + remaining + added)
-        } else {
-            state.copy(totalMs = total, remainingMs = remaining + added)
-        }
-    }
-
-    fun reset(state: TimerState) =
-        state.copy(totalMs = state.durationMs, remainingMs = state.durationMs, endAtMs = 0L)
-
-    fun finishIfDue(state: TimerState, nowMs: Long): TimerState =
-        if (state.isRunning && state.endAtMs <= nowMs) state.copy(remainingMs = 0L, endAtMs = 0L) else state
-
-    fun setDurationMinutes(state: TimerState, minutes: Int): TimerState {
-        val duration = minutes.coerceIn(MIN_MINUTES, MAX_MINUTES) * TimerState.MINUTE_MS
-        return if (state.isRunning) state.copy(durationMs = duration)
-        else TimerState(durationMs = duration, totalMs = duration, remainingMs = duration)
-    }
-
-    fun elapsedFraction(state: TimerState, nowMs: Long): Float {
-        if (state.totalMs <= 0L) return 0f
-        return (1f - state.remainingAt(nowMs).toFloat() / state.totalMs).coerceIn(0f, 1f)
-    }
-
-    private fun start(state: TimerState, nowMs: Long) =
-        state.copy(endAtMs = nowMs + state.remainingMs.coerceAtLeast(1_000L))
 }
 
 object Randomizer {
@@ -106,7 +60,6 @@ object ActionSlots {
         ExpandedCardMode.PROGRESS_COUNTER ->
             if (config.counterSource == CounterSource.DAY) emptyList()
             else listOf(CardAction.CounterPlus, CardAction.CounterMinus, CardAction.CounterReset)
-        ExpandedCardMode.FOCUS_TIMER -> listOf(CardAction.TimerToggle, CardAction.TimerAdd5Min, CardAction.TimerReset)
         ExpandedCardMode.QUICK_TOOLS -> listOf(CardAction.RollDice, CardAction.FlipCoin, CardAction.RandomNumber)
     }
 
@@ -115,7 +68,6 @@ object ActionSlots {
         CardAction.EditNoteInline -> ExpandedCardMode.CUSTOM_NOTE
         CardAction.RefreshStats -> ExpandedCardMode.DEVICE_STATS
         CardAction.CounterPlus, CardAction.CounterMinus, CardAction.CounterReset -> ExpandedCardMode.PROGRESS_COUNTER
-        CardAction.TimerToggle, CardAction.TimerAdd5Min, CardAction.TimerReset -> ExpandedCardMode.FOCUS_TIMER
         CardAction.RollDice, CardAction.FlipCoin, CardAction.RandomNumber -> ExpandedCardMode.QUICK_TOOLS
         else -> null
     }
@@ -156,19 +108,15 @@ object ActionSlots {
 object CardActionReducer {
     fun changesState(action: CardAction): Boolean = when (action) {
         CardAction.CounterPlus, CardAction.CounterMinus, CardAction.CounterReset,
-        CardAction.TimerToggle, CardAction.TimerAdd5Min, CardAction.TimerReset,
         CardAction.RollDice, CardAction.FlipCoin, CardAction.RandomNumber -> true
         else -> false
     }
 
-    fun reduce(card: ExpandedCardConfig, action: CardAction, nowMs: Long, random: Random): ExpandedCardConfig? =
+    fun reduce(card: ExpandedCardConfig, action: CardAction, random: Random): ExpandedCardConfig? =
         when (action) {
             CardAction.CounterPlus -> card.copy(counter = CounterReducer.plus(card.counter))
             CardAction.CounterMinus -> card.copy(counter = CounterReducer.minus(card.counter))
             CardAction.CounterReset -> card.copy(counter = CounterReducer.reset(card.counter))
-            CardAction.TimerToggle -> card.copy(timer = TimerReducer.toggle(card.timer, nowMs))
-            CardAction.TimerAdd5Min -> card.copy(timer = TimerReducer.addFiveMinutes(card.timer, nowMs))
-            CardAction.TimerReset -> card.copy(timer = TimerReducer.reset(card.timer))
             CardAction.RollDice -> card.copy(lastTool = Randomizer.rollDice(random))
             CardAction.FlipCoin -> card.copy(lastTool = Randomizer.flipCoin(random))
             CardAction.RandomNumber -> card.copy(lastTool = Randomizer.number(random, card.randomMin, card.randomMax))

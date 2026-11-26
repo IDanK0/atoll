@@ -42,7 +42,7 @@ class AtollCardActionReceiver : BroadcastReceiver() {
     private suspend fun handle(context: Context, action: CardAction, intent: Intent) {
         val repo = LiveAlertPreferencesRepository.getInstance(context)
         if (CardActionReducer.changesState(action)) {
-            repo.updateCard { CardActionReducer.reduce(it, action, System.currentTimeMillis(), Random.Default) ?: it }
+            repo.updateCard { CardActionReducer.reduce(it, action, Random.Default) ?: it }
             return
         }
         when (action) {

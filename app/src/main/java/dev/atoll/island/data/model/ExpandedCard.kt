@@ -6,11 +6,10 @@ enum class ExpandedCardMode {
     SHORTCUT_DOCK,
     DEVICE_STATS,
     PROGRESS_COUNTER,
-    FOCUS_TIMER,
     QUICK_TOOLS;
 
     companion object {
-        fun fromName(name: String?): ExpandedCardMode = entries.firstOrNull { it.name == name } ?: MINIMAL
+        fun fromName(name: String?): ExpandedCardMode = entries.firstOrNull { it.name == name } ?: SHORTCUT_DOCK
     }
 }
 
@@ -46,15 +45,6 @@ object CardColors {
     // 0 = colore d'accento del sistema, che segue lo sfondo
     const val DEFAULT = 0
     const val BADGE = 0xFF3F51B5.toInt()
-    val SWATCHES = listOf(
-        0xFF3F51B5.toInt(),
-        0xFF00897B.toInt(),
-        0xFF43A047.toInt(),
-        0xFFF4511E.toInt(),
-        0xFFD81B60.toInt(),
-        0xFF5E35B1.toInt(),
-        0xFF546E7A.toInt()
-    )
 }
 
 sealed interface CardAction {
@@ -68,9 +58,6 @@ sealed interface CardAction {
     data object CounterPlus : CardAction
     data object CounterMinus : CardAction
     data object CounterReset : CardAction
-    data object TimerToggle : CardAction
-    data object TimerAdd5Min : CardAction
-    data object TimerReset : CardAction
     data object RollDice : CardAction
     data object FlipCoin : CardAction
     data object RandomNumber : CardAction
@@ -82,24 +69,6 @@ sealed interface CardAction {
 
 data class CounterState(val count: Int = 0, val goal: Int = 8)
 
-// endAtMs > 0 = sta andando; da fermo il tempo rimasto sta in remainingMs
-data class TimerState(
-    val durationMs: Long = DEFAULT_DURATION_MS,
-    val totalMs: Long = DEFAULT_DURATION_MS,
-    val remainingMs: Long = DEFAULT_DURATION_MS,
-    val endAtMs: Long = 0L
-) {
-    val isRunning: Boolean get() = endAtMs > 0L
-    val isFinished: Boolean get() = !isRunning && remainingMs <= 0L
-
-    fun remainingAt(nowMs: Long): Long = if (isRunning) (endAtMs - nowMs).coerceAtLeast(0L) else remainingMs
-
-    companion object {
-        const val MINUTE_MS = 60_000L
-        const val DEFAULT_DURATION_MS = 25 * MINUTE_MS
-    }
-}
-
 sealed interface ToolResult {
     data class Dice(val value: Int) : ToolResult
     data class Coin(val heads: Boolean) : ToolResult
@@ -107,7 +76,7 @@ sealed interface ToolResult {
 }
 
 data class ExpandedCardConfig(
-    val mode: ExpandedCardMode = ExpandedCardMode.MINIMAL,
+    val mode: ExpandedCardMode = ExpandedCardMode.SHORTCUT_DOCK,
     val noteTitle: String = "",
     val noteSubText: String = "",
     val noteBody: String = "",
@@ -121,7 +90,6 @@ data class ExpandedCardConfig(
     val counterLabel: String = "",
     val counter: CounterState = CounterState(),
     val accentColor: Int = CardColors.DEFAULT,
-    val timer: TimerState = TimerState(),
     val randomMin: Int = 1,
     val randomMax: Int = 100,
     val lastTool: ToolResult? = null,

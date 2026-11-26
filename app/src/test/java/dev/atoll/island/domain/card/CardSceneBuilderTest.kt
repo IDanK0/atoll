@@ -8,7 +8,6 @@ import dev.atoll.island.data.model.LargeIconConfig
 import dev.atoll.island.data.model.LargeIconType
 import dev.atoll.island.data.model.StatMetric
 import dev.atoll.island.data.model.TapAction
-import dev.atoll.island.data.model.TimerState
 import dev.atoll.island.data.model.ToolResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,34 +24,22 @@ class CardSceneBuilderTest {
         override fun temperature(celsius: Float) = "$celsius C"
         override fun gigabytes(value: Float) = "$value GB"
         override fun unavailable() = "n/a"
-        override fun timerReady(duration: String) = "ready $duration"
-        override fun timerRunning(endsAt: String) = "ends $endsAt"
-        override fun timerPaused(remaining: String) = "paused $remaining"
-        override fun timerFinished() = "done"
-        override fun timerRemainingLabel() = "left"
-        override fun duration(ms: Long) = "${ms / 1000}s"
-        override fun clock(epochMs: Long) = "t$epochMs"
         override fun toolsHint() = "hint"
         override fun toolResult(result: ToolResult) = result.toString()
-        override fun actionLabel(action: CardAction, timerRunning: Boolean) = action.toString()
         override fun counterOf(goal: Int) = "of $goal"
-        override fun timerEnds(clock: String) = "ends $clock"
-        override fun timerPausedShort() = "paused"
-        override fun timerReadyShort() = "ready"
         override fun toolValue(result: ToolResult) = "value"
         override fun toolName(result: ToolResult) = "name"
         override fun toolsChoose() = "choose"
-        override fun noteEmpty() = "empty"
         override fun actionLabel(action: CardAction) = action.toString()
     }
 
-    private val env = CardEnvironment(nowMs = 0L, minuteOfDay = 600, apiLevel = 37, stats = DeviceStats(batteryPercent = 80))
+    private val env = CardEnvironment(minuteOfDay = 600, apiLevel = 37, stats = DeviceStats(batteryPercent = 80))
 
     private fun build(card: ExpandedCardConfig, photo: Boolean = false) = CardSceneBuilder.build(card, env, strings, strings, photo)
 
     @Test
     fun blankModeHasNoScene() {
-        assertNull(build(ExpandedCardConfig()))
+        assertNull(build(ExpandedCardConfig(mode = ExpandedCardMode.MINIMAL)))
     }
 
     @Test
@@ -84,20 +71,6 @@ class CardSceneBuilderTest {
         val scene = build(card) as CardScene.Counter
         assertEquals(20, scene.segments)
         assertEquals(10, scene.filled)
-    }
-
-    @Test
-    fun timerButtonsFollowTheState() {
-        val minute = TimerState.MINUTE_MS
-        val ready = ExpandedCardConfig(mode = ExpandedCardMode.FOCUS_TIMER)
-        val r = build(ready) as CardScene.Timer
-        assertEquals(TimerUi.READY, r.state)
-        assertEquals("25:00", r.clock)
-        assertEquals(CardAction.TimerAdd5Min, r.buttons[1].action)
-        val running = ready.copy(timer = TimerReducer.toggle(ready.timer, 0L))
-        assertEquals("ends t${25 * minute}", (build(running) as CardScene.Timer).caption)
-        val paused = running.copy(timer = TimerReducer.toggle(running.timer, 10 * minute))
-        assertEquals(CardAction.TimerReset, (build(paused) as CardScene.Timer).buttons[1].action)
     }
 
     @Test

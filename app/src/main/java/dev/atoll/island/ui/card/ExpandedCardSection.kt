@@ -65,11 +65,9 @@ import dev.atoll.island.data.model.LiveAlertConfig
 import dev.atoll.island.data.model.PromotionDiagnostics
 import dev.atoll.island.data.model.StatMetric
 import dev.atoll.island.data.model.TapAction
-import dev.atoll.island.data.model.TimerState
 import dev.atoll.island.domain.card.ActionSlots
 import dev.atoll.island.domain.card.CounterReducer
 import dev.atoll.island.domain.card.StatSelection
-import dev.atoll.island.domain.card.TimerReducer
 import dev.atoll.island.service.card.AndroidCardStrings
 import dev.atoll.island.service.card.AppIconLoader
 import dev.atoll.island.service.card.CardMedia
@@ -109,7 +107,6 @@ fun ExpandedCardSection(config: LiveAlertConfig, onUpdate: CardUpdate, modifier:
             ExpandedCardMode.SHORTCUT_DOCK -> DockSettings(card, onUpdate)
             ExpandedCardMode.DEVICE_STATS -> StatsSettings(card, onUpdate)
             ExpandedCardMode.PROGRESS_COUNTER -> CounterSettings(card, onUpdate)
-            ExpandedCardMode.FOCUS_TIMER -> TimerSettings(card, onUpdate)
             ExpandedCardMode.QUICK_TOOLS -> ToolsSettings(card, onUpdate)
         }
     }
@@ -299,25 +296,6 @@ private fun CounterSettings(card: ExpandedCardConfig, onUpdate: CardUpdate) {
                 IconButton(onClick = { onUpdate { it.copy(counter = CounterReducer.setGoal(it.counter, it.counter.goal + 1)) } }) {
                     Icon(painterResource(R.drawable.ic_act_plus), stringResource(R.string.card_action_plus))
                 }
-            }
-        }
-    }
-}
-
-private val timerChoices = listOf(5, 15, 25, 45, 60, 90)
-
-@Composable
-private fun TimerSettings(card: ExpandedCardConfig, onUpdate: CardUpdate) {
-    val minutes = (card.timer.durationMs / TimerState.MINUTE_MS).toInt()
-    Column {
-        SupportingText(stringResource(R.string.card_timer_length))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            timerChoices.forEach { m ->
-                FilterChip(
-                    selected = m == minutes,
-                    onClick = { onUpdate { it.copy(timer = TimerReducer.setDurationMinutes(it.timer, m)) } },
-                    label = { Text(stringResource(R.string.card_timer_minutes, m)) }
-                )
             }
         }
     }
