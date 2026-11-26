@@ -5,6 +5,7 @@
     android:layout_width="0dp"
     android:layout_height="wrap_content"
     android:layout_weight="1"
+    android:forceDarkAllowed="false"
     android:gravity="center_horizontal"
     android:orientation="vertical">
 
@@ -25,6 +26,7 @@
             android:layout_gravity="center"
             android:fontFamily="sans-serif-medium"
             android:fontFeatureSettings="tnum"
+            android:forceDarkAllowed="false"
             android:includeFontPadding="false"
             android:maxLines="1"
             android:textColor="#FFFFFFFF"
@@ -35,5 +37,6 @@
         android:id="@+id/mk_ring_cap"
         style="@style/CardCaption"
         android:layout_marginTop="3dp"
+        android:forceDarkAllowed="false"
         android:textSize="12sp" />
 </LinearLayout>

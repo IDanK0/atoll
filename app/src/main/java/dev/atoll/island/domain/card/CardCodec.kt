@@ -41,7 +41,11 @@ object CardCodec {
 
     private fun fields(action: CardAction): List<String> = when (action) {
         is CardAction.LaunchApp -> listOf("app", action.packageName, action.appLabel)
-        is CardAction.AppShortcut -> listOf("shortcut", action.intentUri, action.label, action.packageName)
+        is CardAction.AppShortcut -> if (action.iconId.isNotEmpty()) {
+            listOf("shortcut", action.intentUri, action.label, action.packageName, action.iconId)
+        } else {
+            listOf("shortcut", action.intentUri, action.label, action.packageName)
+        }
         is CardAction.OpenUrl -> listOf("url", action.url, action.label)
         is CardAction.CopySnippet -> listOf("copy", action.label, action.text)
         is CardAction.DialNumber -> listOf("dial", action.phoneNumber, action.label)
@@ -69,6 +73,7 @@ object CardCodec {
         "shortcut" -> when (f.size) {
             3 -> CardAction.AppShortcut(f[1], f[2])
             4 -> CardAction.AppShortcut(f[1], f[2], f[3])
+            5 -> CardAction.AppShortcut(f[1], f[2], f[3], f[4])
             else -> null
         }
         "url" -> if (f.size == 3) CardAction.OpenUrl(f[1], f[2]) else null

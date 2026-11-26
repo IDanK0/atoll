@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="UselessParent,ContentDescription,UseCompoundDrawables"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:forceDarkAllowed="false">
 
     <LinearLayout
         android:id="@+id/st_row"

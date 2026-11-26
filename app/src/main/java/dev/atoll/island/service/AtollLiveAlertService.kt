@@ -1,5 +1,6 @@
 package dev.atoll.island.service
 
+import android.app.Notification
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -41,13 +42,16 @@ import dev.atoll.island.domain.card.StatSelection
 import dev.atoll.island.service.card.TorchController
 import dev.atoll.island.ui.MainActivity
 import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
 
 // tiene viva una sola notifica promossa, ColorOS la mette nella capsula
 class AtollLiveAlertService : LifecycleService() {
@@ -67,6 +71,8 @@ class AtollLiveAlertService : LifecycleService() {
     private var batteryRegistered = false
     private var tickRegistered = false
     private var statsTickerJob: Job? = null
+    private data class UpdateRequest(val config: LiveAlertConfig, val force: Boolean, val scheduleVerification: Boolean)
+    private val updateQueue = Channel<UpdateRequest>(Channel.CONFLATED)
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = refreshCardIfChanged()
@@ -126,6 +132,12 @@ class AtollLiveAlertService : LifecycleService() {
         val repo = LiveAlertPreferencesRepository.getInstance(applicationContext)
         val initialConfig = repo.config.value
         postOrUpdateForeground(initialConfig, force = true)
+
+        lifecycleScope.launch(Dispatchers.Default) {
+            for (req in updateQueue) {
+                applyUpdate(req.config, req.force, req.scheduleVerification)
+            }
+        }
 
         lifecycleScope.launch {
             repo.config.collect { config ->
@@ -233,6 +245,7 @@ class AtollLiveAlertService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        updateQueue.close()
         closeCalibration(restoreNotification = false)
         verificationJob?.cancel()
         verificationJob = null
@@ -252,27 +265,50 @@ class AtollLiveAlertService : LifecycleService() {
         super.onDestroy()
     }
 
+    private data class PreparedNotification(
+        val config: LiveAlertConfig,
+        val metrics: DeviceDisplayMetrics,
+        val solved: AdaptivePaddingResult,
+        val cardContent: CardContent,
+        val notification: Notification
+    )
+
     private fun postOrUpdateForeground(
         config: LiveAlertConfig,
         force: Boolean,
         scheduleVerification: Boolean = true
     ) {
+        if (!hasEnteredForeground) {
+            // la prima notifica foreground va pubblicata subito all'avvio per evitare timeout Android
+            prepareNotification(config, force)?.let { commitPrepared(it, scheduleVerification, initialStart = true) }
+        } else {
+            updateQueue.trySend(UpdateRequest(config, force, scheduleVerification))
+        }
+    }
+
+    private suspend fun applyUpdate(
+        config: LiveAlertConfig,
+        force: Boolean,
+        scheduleVerification: Boolean
+    ) {
+        val prepared = prepareNotification(config, force) ?: return
+        withContext(Dispatchers.Main) {
+            if (hasEnteredForeground) {
+                commitPrepared(prepared, scheduleVerification, initialStart = false)
+            }
+        }
+    }
+
+    private fun prepareNotification(config: LiveAlertConfig, force: Boolean): PreparedNotification? {
         val (metrics, solvedResult) = LiveAlertNotificationBuilder.solveForDevice(this, config)
         if (hasEnteredForeground && !force &&
             lastAppliedConfig == config &&
             !metricsDiffer(lastAppliedMetrics, metrics)
         ) {
-            return
+            return null
         }
-
-        lastAppliedConfig = config
-        lastAppliedMetrics = metrics
         val activeOverride = calibrationText
-        _displayMetrics.value = metrics
-        _adaptiveResult.value = solvedResult
-
         val cardContent = LiveAlertNotificationBuilder.resolveCard(this, config)
-        lastCardContent = cardContent
         val notification = LiveAlertNotificationBuilder.build(
             context = this,
             config = if (activeOverride != null) config.copy(debugVisibleMode = false) else config,
@@ -280,25 +316,39 @@ class AtollLiveAlertService : LifecycleService() {
             calibrationOverrideText = activeOverride,
             cardContent = cardContent
         )
-        if (!hasEnteredForeground) {
+        return PreparedNotification(config, metrics, solvedResult, cardContent, notification)
+    }
+
+    private fun commitPrepared(
+        prepared: PreparedNotification,
+        scheduleVerification: Boolean,
+        initialStart: Boolean
+    ) {
+        lastAppliedConfig = prepared.config
+        lastAppliedMetrics = prepared.metrics
+        _displayMetrics.value = prepared.metrics
+        _adaptiveResult.value = prepared.solved
+        lastCardContent = prepared.cardContent
+
+        if (initialStart || !hasEnteredForeground) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(
                     NOTIFICATION_ID,
-                    notification,
+                    prepared.notification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 )
             } else {
-                startForeground(NOTIFICATION_ID, notification)
+                startForeground(NOTIFICATION_ID, prepared.notification)
             }
             hasEnteredForeground = true
         } else {
-            notificationManager?.notify(NOTIFICATION_ID, notification)
+            notificationManager?.notify(NOTIFICATION_ID, prepared.notification)
         }
         if (scheduleVerification) {
             scheduleRecheck()
         }
-        updateCardMonitors(config)
-        refreshDiagnostics(this, config, metrics, solvedResult)
+        updateCardMonitors(prepared.config)
+        refreshDiagnostics(this, prepared.config, prepared.metrics, prepared.solved, prepared.notification)
     }
 
     // batteria e minuti solo quando la scheda li mostra, così il consumo resta quasi zero
@@ -397,8 +447,10 @@ class AtollLiveAlertService : LifecycleService() {
         val config = LiveAlertPreferencesRepository.getInstance(applicationContext).config.value
         if (!config.enabled) return
         if (checkCounterMidnightReset(config)) return
-        if (LiveAlertNotificationBuilder.resolveCard(this, config) != lastCardContent) {
-            postOrUpdateForeground(config, force = true, scheduleVerification = false)
+        lifecycleScope.launch(Dispatchers.Default) {
+            if (LiveAlertNotificationBuilder.resolveCard(this@AtollLiveAlertService, config) != lastCardContent) {
+                postOrUpdateForeground(config, force = true, scheduleVerification = false)
+            }
         }
     }
 
@@ -515,7 +567,8 @@ class AtollLiveAlertService : LifecycleService() {
             context: Context,
             config: LiveAlertConfig,
             metricsOverride: DeviceDisplayMetrics? = null,
-            solvedOverride: AdaptivePaddingResult? = null
+            solvedOverride: AdaptivePaddingResult? = null,
+            builtNotification: Notification? = null
         ) {
             val (metrics, solved) = if (metricsOverride != null && solvedOverride != null) {
                 metricsOverride to solvedOverride
@@ -528,7 +581,8 @@ class AtollLiveAlertService : LifecycleService() {
                 context = context,
                 config = config,
                 isServiceRunning = _isRunning.value,
-                solvedResult = solved
+                solvedResult = solved,
+                builtNotification = builtNotification
             )
         }
     }

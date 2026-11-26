@@ -168,7 +168,9 @@ object CustomCardParser {
 
     private fun parseBackground(raw: String?): Pair<CardBackground?, String?> {
         if (raw.isNullOrEmpty()) return null to null
-        val byName = CardBackground.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
+        val byName = CardBackground.entries.firstOrNull {
+            it != CardBackground.CUSTOM && it.name.equals(raw, ignoreCase = true)
+        }
         if (byName != null) return byName to null
         val hex = raw.removePrefix("#")
         if (hex.length == 6 && hex.all(::isHex)) return null to "99${hex.uppercase(Locale.ROOT)}"

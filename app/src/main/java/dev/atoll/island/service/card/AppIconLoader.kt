@@ -5,12 +5,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
+import android.database.ContentObserver
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.drawable.Drawable
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.util.LruCache
@@ -27,10 +30,44 @@ object AppIconLoader {
 
     private val icons = LruCache<String, Bitmap>(48)
     @Volatile private var pack: IconPack? = null
+    @Volatile private var cachedPackName: String? = null
+    @Volatile private var packCheckedAtMs = 0L
+    @Volatile private var observerRegistered = false
 
-    fun activePackName(context: Context): String? =
-        runCatching { Settings.System.getString(context.contentResolver, COLOROS_ICON_PACK) }.getOrNull()
+    private const val PACK_CACHE_TTL_MS = 30_000L
+
+    private fun ensureObserver(context: Context) {
+        if (observerRegistered) return
+        observerRegistered = true
+        runCatching {
+            val app = context.applicationContext
+            app.contentResolver.registerContentObserver(
+                Settings.System.getUriFor(COLOROS_ICON_PACK),
+                false,
+                object : ContentObserver(Handler(Looper.getMainLooper())) {
+                    override fun onChange(selfChange: Boolean) {
+                        packCheckedAtMs = 0L
+                        cachedPackName = null
+                        pack = null
+                        icons.evictAll()
+                    }
+                }
+            )
+        }
+    }
+
+    fun activePackName(context: Context): String? {
+        ensureObserver(context)
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (packCheckedAtMs > 0L && now - packCheckedAtMs < PACK_CACHE_TTL_MS) {
+            return cachedPackName
+        }
+        val resolved = runCatching { Settings.System.getString(context.contentResolver, COLOROS_ICON_PACK) }.getOrNull()
             ?.trim()?.takeIf { it.isNotEmpty() && isInstalled(context, it) }
+        cachedPackName = resolved
+        packCheckedAtMs = now
+        return resolved
+    }
 
     fun load(context: Context, packageName: String, sizePx: Int = DEFAULT_SIZE_PX): Bitmap? {
         val packName = activePackName(context)

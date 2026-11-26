@@ -6,7 +6,6 @@ data class NoteSpan(val start: Int, val end: Int, val style: NoteSpanStyle)
 
 data class ParsedNote(val text: String, val spans: List<NoteSpan> = emptyList())
 
-// Markdown minimo per le note della scheda
 object NoteMarkdown {
 
     const val BULLET_PREFIX = "\u2022 "

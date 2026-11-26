@@ -2,7 +2,9 @@ package dev.atoll.island.ui.card
 
 import android.app.Activity
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,12 +47,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
+import androidx.core.graphics.drawable.toBitmap
 import dev.atoll.island.R
 import dev.atoll.island.data.model.CardAction
 import dev.atoll.island.domain.card.ActionSlots
 import dev.atoll.island.service.card.AndroidCardStrings
 import dev.atoll.island.service.card.AppIconLoader
+import dev.atoll.island.service.card.ShortcutIcons
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.Collator
 
@@ -62,7 +68,6 @@ fun ActionPickerDialog(
     onDismiss: () -> Unit,
     onPick: (CardAction) -> Unit
 ) {
-    // azioni con configurazione dedicata, poi scorciatoie rapide dirette
     val all = listOf(
         CardAction.LaunchApp("", ""),
         CardAction.AppShortcut("", ""),
@@ -225,9 +230,23 @@ private data class ShortcutCreatorEntry(
     val appLabel: String
 )
 
+@Suppress("DEPRECATION")
+private fun extractShortcutBitmap(context: Context, data: Intent): Bitmap? {
+    IntentCompat.getParcelableExtra(data, Intent.EXTRA_SHORTCUT_ICON, Bitmap::class.java)?.let { return it }
+    val res = IntentCompat.getParcelableExtra(data, Intent.EXTRA_SHORTCUT_ICON_RESOURCE, Intent.ShortcutIconResource::class.java)
+        ?: return null
+    return runCatching {
+        val appRes = context.packageManager.getResourcesForApplication(res.packageName)
+        @Suppress("DiscouragedApi")
+        val id = appRes.getIdentifier(res.resourceName, null, null)
+        if (id != 0) appRes.getDrawable(id, null)?.toBitmap(AppIconLoader.DEFAULT_SIZE_PX, AppIconLoader.DEFAULT_SIZE_PX) else null
+    }.getOrNull()
+}
+
 @Composable
 fun ShortcutPickerDialog(onDismiss: () -> Unit, onAdd: (CardAction) -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val failed = stringResource(R.string.card_shortcut_failed)
     var pendingEntry by remember { mutableStateOf<ShortcutCreatorEntry?>(null) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -245,7 +264,16 @@ fun ShortcutPickerDialog(onDismiss: () -> Unit, onAdd: (CardAction) -> Unit) {
         val name = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME)?.trim()
             ?.takeIf { it.isNotEmpty() } ?: entry?.label.orEmpty()
         val pkg = target.`package` ?: entry?.packageName.orEmpty()
-        onAdd(CardAction.AppShortcut(target.toUri(Intent.URI_INTENT_SCHEME), name, pkg))
+        val uri = target.toUri(Intent.URI_INTENT_SCHEME)
+        val rawBitmap = extractShortcutBitmap(context, data)
+        if (rawBitmap == null) {
+            onAdd(CardAction.AppShortcut(uri, name, pkg))
+        } else {
+            scope.launch {
+                val iconId = withContext(Dispatchers.IO) { ShortcutIcons.save(context, rawBitmap) }.orEmpty()
+                onAdd(CardAction.AppShortcut(uri, name, pkg, iconId))
+            }
+        }
     }
     val creators by produceState<List<ShortcutCreatorEntry>?>(null) {
         value = withContext(Dispatchers.IO) {

@@ -27,7 +27,7 @@ import dev.atoll.island.R
 private data class License(val library: String, val owner: String, val license: String)
 
 private val LICENSES = listOf(
-    License("Atoll", "Atoll contributors", "MIT"),
+    License("Atoll", "Daniele Malltezi", "MIT"),
     License("AndroidX Core, Activity, Lifecycle, DataStore", "The Android Open Source Project", "Apache 2.0"),
     License("Jetpack Compose, Material 3", "The Android Open Source Project", "Apache 2.0"),
     License("Kotlin, kotlinx.coroutines", "JetBrains s.r.o. and contributors", "Apache 2.0"),
@@ -48,6 +48,7 @@ fun AboutAndLicensesDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 SupportingText(stringResource(R.string.about_meta_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
+                Paragraph(R.string.about_author_title, R.string.about_author_body)
                 Paragraph(R.string.about_privacy_title, R.string.about_privacy_body)
                 Paragraph(R.string.about_credits_title, R.string.about_credits_body)
                 Text(

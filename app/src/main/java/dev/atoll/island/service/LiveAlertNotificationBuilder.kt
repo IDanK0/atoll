@@ -37,6 +37,9 @@ object LiveAlertNotificationBuilder {
     @Volatile
     internal var debugHook: ((Context, NotificationCompat.Builder) -> Unit)? = null
 
+    @Volatile
+    private var channelsEnsured = false
+
     private val flagPromotedOngoingMask: Int by lazy {
         runCatching {
             Notification::class.java.getField("FLAG_PROMOTED_ONGOING").getInt(null)
@@ -44,6 +47,7 @@ object LiveAlertNotificationBuilder {
     }
 
     fun ensureChannels(context: Context) {
+        if (channelsEnsured) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
 
         val lowChannel = NotificationChannel(
@@ -72,6 +76,7 @@ object LiveAlertNotificationBuilder {
 
         manager.createNotificationChannel(lowChannel)
         manager.createNotificationChannel(defaultChannel)
+        channelsEnsured = true
     }
 
     fun solveForDevice(
@@ -184,7 +189,8 @@ object LiveAlertNotificationBuilder {
         context: Context,
         config: LiveAlertConfig,
         isServiceRunning: Boolean,
-        solvedResult: AdaptivePaddingResult = solveForDevice(context, config).second
+        solvedResult: AdaptivePaddingResult = solveForDevice(context, config).second,
+        builtNotification: Notification? = null
     ): PromotionDiagnostics {
         val nm = context.getSystemService(NotificationManager::class.java)
 
@@ -192,7 +198,7 @@ object LiveAlertNotificationBuilder {
         val notificationsEnabled = nm?.areNotificationsEnabled() ?: false
         val canPostPromoted = canPostPromotedNotifications(context)
 
-        val sampleNotification = runCatching { build(context, config, solvedResult) }.getOrNull()
+        val sampleNotification = builtNotification ?: runCatching { build(context, config, solvedResult) }.getOrNull()
         val eligible = if (sampleNotification != null && isAndroid16Plus) {
             runCatching {
                 NotificationCompat.hasPromotableCharacteristics(sampleNotification)

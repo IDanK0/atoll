@@ -23,6 +23,7 @@ import dev.atoll.island.data.model.TitleMode
 import dev.atoll.island.domain.CalibrationMath
 import dev.atoll.island.domain.CapsulePaddingGenerator
 import dev.atoll.island.service.AtollTileService
+import dev.atoll.island.service.card.ShortcutIcons
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -228,6 +229,12 @@ class LiveAlertPreferencesRepository private constructor(context: Context) {
             updated = transform(ExpandedCardPreferences.read(prefs))
             ExpandedCardPreferences.write(prefs, updated)
         }
+        val keepShortcutIcons = updated.actionOverrides.values
+            .flatten()
+            .filterIsInstance<dev.atoll.island.data.model.CardAction.AppShortcut>()
+            .mapNotNull { it.iconId.takeIf { id -> id.isNotBlank() } }
+            .toSet()
+        ShortcutIcons.prune(appContext, keepShortcutIcons)
         return updated
     }
 

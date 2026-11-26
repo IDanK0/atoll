@@ -39,6 +39,8 @@ internal object ExpandedCardPreferences {
     private val counterLastResetDay = longPreferencesKey("card_counter_last_reset_day")
     private val accent = intPreferencesKey("card_accent")
     private val background = stringPreferencesKey("card_background")
+    private val customBgColor = intPreferencesKey("card_custom_bg_color")
+    private val backgroundGradient = booleanPreferencesKey("card_bg_gradient")
     private val customTemplateJson = stringPreferencesKey("card_custom_template_json")
     private val randomMin = intPreferencesKey("card_random_min")
     private val randomMax = intPreferencesKey("card_random_max")
@@ -75,6 +77,8 @@ internal object ExpandedCardPreferences {
             // il vecchio indaco predefinito diventa l'accento di sistema
             accentColor = (prefs[accent] ?: defaults.accentColor).let { if (it == CardColors.BADGE) CardColors.DEFAULT else it },
             background = CardBackground.fromName(prefs[background]),
+            customBgColor = prefs[customBgColor] ?: defaults.customBgColor,
+            backgroundGradient = prefs[backgroundGradient] ?: defaults.backgroundGradient,
             customTemplateJson = prefs[customTemplateJson] ?: "",
             randomMin = prefs[randomMin] ?: defaults.randomMin,
             randomMax = prefs[randomMax] ?: defaults.randomMax,
@@ -93,6 +97,8 @@ internal object ExpandedCardPreferences {
 
     fun write(prefs: MutablePreferences, card: ExpandedCardConfig) {
         val (min, max) = Randomizer.normalizedRange(card.randomMin, card.randomMax)
+        prefs[customBgColor] = card.customBgColor
+        prefs[backgroundGradient] = card.backgroundGradient
         prefs[mode] = card.mode.name
         prefs[noteTitle] = card.noteTitle
         prefs[noteSub] = card.noteSubText

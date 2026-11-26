@@ -34,6 +34,10 @@ import kotlin.math.roundToInt
 object CardViews {
     private const val TRACK = 0x29FFFFFF
     private const val ON_ACCENT = 0xFF101418.toInt()
+    private const val WHITE = 0xFFFFFFFF.toInt()
+    private const val WHITE_90 = 0xE6FFFFFF.toInt()
+    private const val WHITE_70 = 0xB3FFFFFF.toInt()
+    private const val WHITE_60 = 0x99FFFFFF.toInt()
 
     // 0 = colore d'accento del sistema, come fa ColorOS con lo sfondo
     fun accent(context: Context, color: Int): Int =
@@ -52,6 +56,12 @@ object CardViews {
     }
 
     private fun rv(context: Context, layout: Int) = RemoteViews(context.packageName, layout)
+
+    // colori espliciti per ridurre i problemi di contrasto su ColorOS
+    private fun RemoteViews.text(viewId: Int, value: CharSequence, color: Int) {
+        setTextViewText(viewId, value)
+        setTextColor(viewId, color)
+    }
 
     private fun RemoteViews.click(context: Context, viewId: Int, button: SceneButton) {
         setContentDescription(viewId, button.label)
@@ -82,20 +92,18 @@ object CardViews {
             val empty = scene.title.isEmpty() && scene.body.isEmpty()
             when {
                 empty -> {
-                    setTextViewText(R.id.nt_title, context.getString(R.string.card_note_empty))
-                    setTextColor(R.id.nt_title, 0xB3FFFFFF.toInt())
+                    text(R.id.nt_title, context.getString(R.string.card_note_empty), WHITE_70)
                     setViewVisibility(R.id.nt_body, View.GONE)
                 }
                 scene.title.isEmpty() -> {
                     setViewVisibility(R.id.nt_title, View.GONE)
-                    setTextViewText(R.id.nt_body, styledNoteBody(scene, density, baseWhite = true))
-                    setTextColor(R.id.nt_body, 0xFFFFFFFF.toInt())
+                    text(R.id.nt_body, styledNoteBody(scene, density, baseWhite = true), WHITE)
                     setTextViewTextSize(R.id.nt_body, TypedValue.COMPLEX_UNIT_SP, 18f)
                 }
                 else -> {
-                    setTextViewText(R.id.nt_title, scene.title)
+                    text(R.id.nt_title, scene.title, WHITE)
                     if (scene.body.isEmpty()) setViewVisibility(R.id.nt_body, View.GONE)
-                    else setTextViewText(R.id.nt_body, styledNoteBody(scene, density, baseWhite = false))
+                    else text(R.id.nt_body, styledNoteBody(scene, density, baseWhite = false), WHITE_70)
                 }
             }
             click(context, R.id.nt_btn, SceneButton(0, CardAction.EditNoteInline, context.getString(R.string.card_action_edit)))
@@ -161,21 +169,24 @@ object CardViews {
     private fun dock(context: Context, scene: CardScene.Dock): RemoteViews = rv(context, R.layout.card_dock).apply {
         val title = scene.title ?: if (scene.slots.isEmpty()) context.getString(R.string.card_dock_empty) else null
         title?.let {
-            setTextViewText(R.id.dock_title, it)
+            text(R.id.dock_title, it, WHITE)
             setViewVisibility(R.id.dock_title, View.VISIBLE)
         }
         scene.slots.take(dockSlots.size).forEachIndexed { i, button ->
             val (slot, icon, label) = dockSlots[i]
+            val shortcutBmp = (button.action as? CardAction.AppShortcut)
+                ?.iconId?.takeIf { it.isNotBlank() }?.let { ShortcutIcons.load(context, it) }
             val appPkg = when (val a = button.action) {
                 is CardAction.LaunchApp -> a.packageName
                 is CardAction.AppShortcut -> a.packageName.takeIf { it.isNotBlank() }
                 else -> null
             }
-            val bitmap = appPkg?.let { AppIconLoader.load(context, it) }
+            val bitmap = shortcutBmp
+                ?: appPkg?.let { AppIconLoader.load(context, it) }
                 ?: CardMedia.glyph(context, AndroidCardStrings.actionIconRes(button.action))
             setViewVisibility(slot, View.VISIBLE)
             setImageViewBitmap(icon, bitmap)
-            setTextViewText(label, button.label)
+            text(label, button.label, WHITE_90)
             click(context, slot, button)
         }
     }
@@ -185,22 +196,22 @@ object CardViews {
         scene.cells.forEach { cell ->
             val child = rv(context, R.layout.card_rv_stat_cell)
             child.setImageViewBitmap(R.id.sc_ring, ring(size, cell.fraction, accent, context.resources.displayMetrics.density))
-            child.setTextViewText(R.id.sc_value, cell.value)
+            child.text(R.id.sc_value, cell.value, WHITE)
             val textSp = if (cell.value.length >= 6) 13f else 17f
             child.setTextViewTextSize(R.id.sc_value, TypedValue.COMPLEX_UNIT_SP, textSp)
-            child.setTextViewText(R.id.sc_caption, cell.caption)
+            child.text(R.id.sc_caption, cell.caption, WHITE_70)
             addView(R.id.st_row, child)
         }
     }
 
     private fun counter(context: Context, scene: CardScene.Counter, accent: Int): RemoteViews = rv(context, R.layout.card_rv_counter).apply {
-        setTextViewText(R.id.cv_value, scene.value)
+        text(R.id.cv_value, scene.value, WHITE)
         if (scene.value.length >= 7) {
             setTextViewTextSize(R.id.cv_value, TypedValue.COMPLEX_UNIT_SP, 32f)
         }
-        scene.total?.let { setTextViewText(R.id.cv_total, it) } ?: setViewVisibility(R.id.cv_total, View.GONE)
+        scene.total?.let { text(R.id.cv_total, it, WHITE_60) } ?: setViewVisibility(R.id.cv_total, View.GONE)
         scene.caption?.let {
-            setTextViewText(R.id.cv_caption, it)
+            text(R.id.cv_caption, it, WHITE_70)
             setViewVisibility(R.id.cv_caption, View.VISIBLE)
         }
         val ids = listOf(R.id.cv_btn_0 to R.id.cv_btn_0_icon, R.id.cv_btn_1 to R.id.cv_btn_1_icon)
@@ -244,13 +255,13 @@ object CardViews {
             setViewVisibility(R.id.tl_die, View.VISIBLE)
         }
         scene.value?.let {
-            setTextViewText(R.id.tl_value, it)
+            text(R.id.tl_value, it, WHITE)
             setViewVisibility(R.id.tl_value, View.VISIBLE)
         }
-        setTextViewText(R.id.tl_caption, scene.caption)
+        text(R.id.tl_caption, scene.caption, WHITE_70)
         listOf(R.id.tl_btn_0, R.id.tl_btn_1, R.id.tl_btn_2).forEachIndexed { i, id ->
             scene.buttons.getOrNull(i)?.let { b ->
-                setTextViewText(id, b.label)
+                text(id, b.label, WHITE)
                 click(context, id, b)
             }
         }
@@ -262,19 +273,18 @@ object CardViews {
         scene.blocks.forEach { block ->
             val child = when (block) {
                 is ResolvedMakerBlock.Value -> rv(context, R.layout.card_mk_value).apply {
-                    setTextViewText(R.id.mk_val, block.text)
+                    text(R.id.mk_val, block.text, WHITE)
                     block.sub?.let {
-                        setTextViewText(R.id.mk_sub, it)
+                        text(R.id.mk_sub, it, WHITE_60)
                         setViewVisibility(R.id.mk_sub, View.VISIBLE)
                     }
                     block.caption?.let {
-                        setTextViewText(R.id.mk_val_cap, it)
+                        text(R.id.mk_val_cap, it, WHITE_70)
                         setViewVisibility(R.id.mk_val_cap, View.VISIBLE)
                     }
                 }
                 is ResolvedMakerBlock.Text -> rv(context, R.layout.card_mk_text).apply {
-                    setTextViewText(R.id.mk_txt, block.text)
-                    if (block.muted) setTextColor(R.id.mk_txt, 0xB3FFFFFF.toInt())
+                    text(R.id.mk_txt, block.text, if (block.muted) WHITE_70 else WHITE_90)
                 }
                 is ResolvedMakerBlock.Bar -> rv(context, R.layout.card_mk_bar).apply {
                     addSegments(context, R.id.mk_bar, block.bar.segments, block.bar.filled, accent)
@@ -283,11 +293,11 @@ object CardViews {
                     block.cells.forEach { cell ->
                         val c = rv(context, R.layout.card_rv_maker_cell)
                         c.setImageViewBitmap(R.id.mk_ring, ring(ringSize, cell.fraction, accent, density))
-                        c.setTextViewText(R.id.mk_ring_val, cell.value)
+                        c.text(R.id.mk_ring_val, cell.value, WHITE)
                         if (cell.value.length >= 6) {
                             c.setTextViewTextSize(R.id.mk_ring_val, TypedValue.COMPLEX_UNIT_SP, 10f)
                         }
-                        c.setTextViewText(R.id.mk_ring_cap, cell.caption)
+                        c.text(R.id.mk_ring_cap, cell.caption, WHITE_70)
                         addView(R.id.mk_rings, c)
                     }
                 }
@@ -296,7 +306,7 @@ object CardViews {
                     ids.forEachIndexed { i, id ->
                         block.buttons.getOrNull(i)?.let { b ->
                             setViewVisibility(id, View.VISIBLE)
-                            setTextViewText(id, b.label)
+                            text(id, b.label, WHITE)
                             click(context, id, b)
                         }
                     }
@@ -334,7 +344,6 @@ object CardViews {
         return out
     }
 
-    // moneta dorata con l'iniziale del lato uscito
     fun coin(letter: String, size: Int): Bitmap {
         val out = createBitmap(size, size)
         val canvas = Canvas(out)

@@ -54,7 +54,11 @@ enum class CardBackground(val colorHex: String?) {
     FOREST("88143628"),
     PLUM("88301B47"),
     AMBER("883D2812"),
-    PITCH("F2090B0E");
+    PITCH("F2090B0E"),
+    CUSTOM(null);
+
+    val isSolidTintCapable: Boolean
+        get() = this != DEFAULT && this != PITCH
 
     companion object {
         fun fromName(name: String?): CardBackground = entries.firstOrNull { it.name == name } ?: DEFAULT
@@ -73,11 +77,17 @@ object CardColors {
     // 0 = colore d'accento del sistema, che segue lo sfondo
     const val DEFAULT = 0
     const val BADGE = 0xFF3F51B5.toInt()
+    const val CUSTOM_BG_DEFAULT = 0xFF16538A.toInt()
 }
 
 sealed interface CardAction {
     data class LaunchApp(val packageName: String, val appLabel: String) : CardAction
-    data class AppShortcut(val intentUri: String, val label: String, val packageName: String = "") : CardAction
+    data class AppShortcut(
+        val intentUri: String,
+        val label: String,
+        val packageName: String = "",
+        val iconId: String = ""
+    ) : CardAction
     data class OpenUrl(val url: String, val label: String) : CardAction
     data class CopySnippet(val label: String, val text: String) : CardAction
     data class DialNumber(val phoneNumber: String, val label: String) : CardAction
@@ -136,6 +146,8 @@ data class ExpandedCardConfig(
     val counter: CounterState = CounterState(),
     val accentColor: Int = CardColors.DEFAULT,
     val background: CardBackground = CardBackground.DEFAULT,
+    val customBgColor: Int = CardColors.CUSTOM_BG_DEFAULT,
+    val backgroundGradient: Boolean = false,
     val customTemplateJson: String = "",
     val randomMin: Int = 1,
     val randomMax: Int = 100,

@@ -218,16 +218,24 @@ object CardSceneBuilder {
 object ColorOsCardJson {
     const val KEY_RV = "atoll_rv"
     const val KEY_TAP = "atoll_tap"
+    const val KEY_BG_ICON = "atoll_bg"
 
     // la capsula riusa lo stesso shortCriticalText della pillola nativa, così resta larga uguale
     fun capsule(shortCriticalText: String): String =
         Json.write(mapOf("capsuleData" to mapOf("type" to "t_sym", "lastTitle" to mapOf("text" to shortCriticalText))))
 
     // tutta la scheda è una vista di Atoll (t_custom): i modelli fissi di ColorOS tagliano e nascondono il testo
-    fun card(tappable: Boolean, backgroundArgbHex: String? = null): String {
+    fun card(
+        tappable: Boolean,
+        backgroundArgbHex: String? = null,
+        backgroundIconKey: String? = null
+    ): String {
         val attr = linkedMapOf<String, Any?>()
         if (tappable) attr["intent"] = "pi/$KEY_TAP"
-        if (!backgroundArgbHex.isNullOrBlank()) {
+        if (!backgroundIconKey.isNullOrBlank()) {
+            attr["background"] = "icon/$backgroundIconKey"
+            attr["bgLight"] = "false"
+        } else if (!backgroundArgbHex.isNullOrBlank()) {
             attr["background"] = "colorInt/#$backgroundArgbHex"
             attr["bgLight"] = "false"
         }

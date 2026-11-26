@@ -3,6 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="2dp"
+    android:forceDarkAllowed="false"
     android:orientation="vertical">
 
     <LinearLayout
@@ -14,12 +15,14 @@
             android:id="@+id/mk_val"
             style="@style/CardValue"
             android:ellipsize="end"
+            android:forceDarkAllowed="false"
             android:textSize="22sp" />
 
         <TextView
             android:id="@+id/mk_sub"
             style="@style/CardTotal"
             android:ellipsize="end"
+            android:forceDarkAllowed="false"
             android:textSize="14sp"
             android:visibility="gone" />
     </LinearLayout>
@@ -28,6 +31,7 @@
         android:id="@+id/mk_val_cap"
         style="@style/CardCaption"
         android:layout_marginTop="2dp"
+        android:forceDarkAllowed="false"
         android:textSize="12sp"
         android:visibility="gone" />
 </LinearLayout>

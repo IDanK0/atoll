@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="UselessParent,ContentDescription,UseCompoundDrawables"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:forceDarkAllowed="false">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -31,16 +32,19 @@
 
                     <TextView
                         android:id="@+id/cv_value"
-                        style="@style/CardValue" />
+                        style="@style/CardValue"
+                        android:forceDarkAllowed="false" />
 
                     <TextView
                         android:id="@+id/cv_total"
-                        style="@style/CardTotal" />
+                        style="@style/CardTotal"
+                        android:forceDarkAllowed="false" />
                 </LinearLayout>
 
                 <TextView
                     android:id="@+id/cv_caption"
                     style="@style/CardCaption"
+                    android:forceDarkAllowed="false"
                     android:visibility="gone" />
             </LinearLayout>
 

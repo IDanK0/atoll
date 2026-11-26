@@ -21,7 +21,6 @@
     <!-- Simple mode -->
     <string name="simple_status_active">Pill on</string>
     <string name="simple_status_off">Pill off</string>
-    <string name="simple_smallest_supported_note">Smallest size this phone can show</string>
     <string name="simple_calibrate_cta">Calibrate size</string>
     <string name="simple_calibrate_done_cta">Calibrate again</string>
     <string name="simple_styles_title">Size</string>
@@ -133,6 +132,8 @@
 
     <!-- About -->
     <string name="about_meta_version">Version %1$s (%2$d)</string>
+    <string name="about_author_title">Creator</string>
+    <string name="about_author_body">Designed and developed by Daniele Malltezi.</string>
     <string name="about_privacy_title">Privacy</string>
     <string name="about_privacy_body">Atoll uses Android Live Updates for the pill. The optional permission to draw over other apps is only for the calibration ruler. Atoll does not use accessibility, read other apps’ notifications, or access the internet. Android may include your settings in device backups.</string>
     <string name="about_credits_title">Trademarks</string>
@@ -204,6 +205,7 @@
     <string name="cal_float_select_preset">Manual text is on. Choose a preset to check its width.</string>
     <string name="cal_float_not_wider">Each pill has to be wider than the one before. If the pill hasn’t changed yet, wait a moment.</string>
     <string name="cal_float_min_out_of_range">The smallest pill can’t be wider than 160 dp. Check that you matched the small pill.</string>
+    <string name="cal_float_min_size">This preset is narrower than this phone can show. The ruler shows the target; the pill stops at its minimum.</string>
     <string name="cal_float_max_size">This preset is wider than this phone can show. The ruler shows the target; the pill stops at its maximum.</string>
     <string name="cal_float_save_failed">Couldn’t save the measurement. Try again.</string>
     <string name="cal_float_saving">Saving…</string>
@@ -400,6 +402,12 @@
     <string name="card_bg_plum">Plum</string>
     <string name="card_bg_amber">Amber</string>
     <string name="card_bg_pitch">Black</string>
+    <string name="card_bg_custom">Custom color</string>
+    <string name="card_bg_wheel_title">Pick a background color</string>
+    <string name="card_bg_brightness">Brightness</string>
+    <string name="card_bg_hex_label">Hex code</string>
+    <string name="card_bg_style_gradient">Black to color</string>
+    <string name="card_bg_style_solid">Solid tint</string>
     <string name="card_counter_of">of %1$d</string>
     <string name="card_tools_choose">Choose what to draw</string>
     <string name="card_maker_presets">Templates</string>

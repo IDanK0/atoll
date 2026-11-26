@@ -96,8 +96,10 @@ import dev.atoll.island.domain.card.MakerParseResult
 import dev.atoll.island.domain.card.StatSelection
 import dev.atoll.island.service.card.AndroidCardStrings
 import dev.atoll.island.service.card.AppIconLoader
+import dev.atoll.island.service.card.CardBackgroundRenderer
 import dev.atoll.island.service.card.CardMedia
 import dev.atoll.island.service.card.ColorOsCardDecorator
+import dev.atoll.island.service.card.ShortcutIcons
 import dev.atoll.island.ui.components.SectionCard
 import dev.atoll.island.ui.components.StatusRow
 import dev.atoll.island.ui.components.SupportingText
@@ -138,19 +140,33 @@ fun ExpandedCardSection(config: LiveAlertConfig, onUpdate: CardUpdate, modifier:
             ExpandedCardMode.CUSTOM_TEMPLATE -> MakerSettings(card, onUpdate)
         }
         if (card.mode != ExpandedCardMode.MINIMAL && card.useColorOsLayouts) {
-            CardBackgroundPicker(card.background, onUpdate)
+            CardBackgroundPicker(card, onUpdate)
         }
     }
 }
 
 private fun previewBrushForCard(context: Context, card: ExpandedCardConfig): Brush {
     if (card.mode == ExpandedCardMode.MINIMAL) return previewBrush(context, CardBackground.DEFAULT)
-    if (card.mode == ExpandedCardMode.CUSTOM_TEMPLATE && card.background == CardBackground.DEFAULT) {
-        val tpl = CustomCardPresets.resolveTemplate(card.customTemplateJson)
-        if (tpl.customBgHex != null) return previewBrushHex(tpl.customBgHex)
-        if (tpl.background != null) return previewBrush(context, tpl.background)
+    val tpl = if (card.mode == ExpandedCardMode.CUSTOM_TEMPLATE && card.background == CardBackground.DEFAULT) {
+        CustomCardPresets.resolveTemplate(card.customTemplateJson)
+    } else null
+    if (card.backgroundGradient) {
+        val rgb = if (tpl?.customBgHex != null) {
+            tpl.customBgHex.toLongOrNull(16)?.toInt()?.and(0x00FFFFFF)
+        } else {
+            val eff = tpl?.background ?: card.background
+            ColorOsCardDecorator.gradientColorRgb(context, eff, card.customBgColor)
+        }
+        if (rgb != null) return gradientBrush(rgb)
     }
-    return previewBrush(context, card.background)
+    if (tpl?.customBgHex != null) return previewBrushHex(tpl.customBgHex)
+    if (tpl?.background != null) return previewBrush(context, tpl.background, card.customBgColor)
+    return previewBrush(context, card.background, card.customBgColor)
+}
+
+private fun gradientBrush(rgb: Int): Brush {
+    val stops = CardBackgroundRenderer.gradientStops(rgb)
+    return Brush.verticalGradient(listOf(Color(stops[0]), Color(stops[1]), Color(stops[2])))
 }
 
 private fun previewBrushHex(hex: String): Brush {
@@ -159,15 +175,21 @@ private fun previewBrushHex(hex: String): Brush {
     return Brush.verticalGradient(listOf(solid.copy(alpha = 0.92f), solid.copy(alpha = 0.72f)))
 }
 
-private fun previewBrush(context: Context, bg: CardBackground): Brush = when (bg) {
+private fun previewBrush(context: Context, bg: CardBackground, customColor: Int = 0): Brush = when (bg) {
     CardBackground.DEFAULT -> Brush.verticalGradient(listOf(Color(0xFF020304), Color(0xFF1A212C)))
     CardBackground.PITCH -> Brush.verticalGradient(listOf(Color(0xFF090B0E), Color(0xFF0D1014)))
-    else -> previewBrushHex(ColorOsCardDecorator.backgroundHex(context, bg) ?: "FF121820")
+    else -> previewBrushHex(ColorOsCardDecorator.backgroundHex(context, bg, customColor) ?: "FF121820")
 }
 
 @Composable
-private fun CardBackgroundPicker(selected: CardBackground, onUpdate: CardUpdate) {
+private fun CardBackgroundPicker(card: ExpandedCardConfig, onUpdate: CardUpdate) {
     val context = LocalContext.current
+    val selected = card.background
+    var showWheel by remember { mutableStateOf(false) }
+    val wheelRainbow = remember {
+        Brush.sweepGradient(listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red))
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = "${stringResource(R.string.card_bg_title)} · ${stringResource(AndroidCardStrings.backgroundNameRes(selected))}",
@@ -178,12 +200,26 @@ private fun CardBackgroundPicker(selected: CardBackground, onUpdate: CardUpdate)
             CardBackground.entries.forEach { bg ->
                 val isSelected = bg == selected
                 val cd = stringResource(AndroidCardStrings.backgroundNameRes(bg))
-                val fill = previewBrush(context, bg)
+                val fill = if (bg == CardBackground.CUSTOM) {
+                    wheelRainbow
+                } else if (card.backgroundGradient && bg.isSolidTintCapable) {
+                    ColorOsCardDecorator.gradientColorRgb(context, bg, card.customBgColor)
+                        ?.let(::gradientBrush)
+                        ?: previewBrush(context, bg, card.customBgColor)
+                } else {
+                    previewBrush(context, bg, card.customBgColor)
+                }
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .clickable { onUpdate { it.copy(background = bg) } }
+                        .clickable {
+                            if (bg == CardBackground.CUSTOM) {
+                                showWheel = true
+                            } else {
+                                onUpdate { it.copy(background = bg) }
+                            }
+                        }
                         .semantics {
                             role = Role.RadioButton
                             this.selected = isSelected
@@ -203,7 +239,15 @@ private fun CardBackgroundPicker(selected: CardBackground, onUpdate: CardUpdate)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isSelected) {
+                        if (bg == CardBackground.CUSTOM) {
+                            Box(
+                                Modifier
+                                    .size(if (isSelected) 16.dp else 12.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(card.customBgColor or 0xFF000000.toInt()))
+                                    .border(1.5.dp, Color.White, CircleShape)
+                            )
+                        } else if (isSelected) {
                             Box(
                                 Modifier
                                     .size(10.dp)
@@ -215,6 +259,33 @@ private fun CardBackgroundPicker(selected: CardBackground, onUpdate: CardUpdate)
                 }
             }
         }
+        if (selected.isSolidTintCapable) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = card.backgroundGradient,
+                    onClick = { onUpdate { it.copy(backgroundGradient = true) } },
+                    shape = SegmentedButtonDefaults.itemShape(0, 2),
+                    label = { Text(stringResource(R.string.card_bg_style_gradient), maxLines = 1) }
+                )
+                SegmentedButton(
+                    selected = !card.backgroundGradient,
+                    onClick = { onUpdate { it.copy(backgroundGradient = false) } },
+                    shape = SegmentedButtonDefaults.itemShape(1, 2),
+                    label = { Text(stringResource(R.string.card_bg_style_solid), maxLines = 1) }
+                )
+            }
+        }
+    }
+    if (showWheel) {
+        ColorWheelDialog(
+            initialColor = card.customBgColor,
+            initialGradient = card.backgroundGradient || selected != CardBackground.CUSTOM,
+            onDismiss = { showWheel = false },
+            onConfirm = { rgb, gradient ->
+                onUpdate { it.copy(background = CardBackground.CUSTOM, customBgColor = rgb, backgroundGradient = gradient) }
+                showWheel = false
+            }
+        )
     }
 }
 
@@ -239,12 +310,15 @@ private fun CardPreviewFrame(config: LiveAlertConfig) {
         }
     }
     val sceneKey = config.card to (if (autoTicks) refreshTick else 0L) to locale
-    val views = remember(sceneKey) { ColorOsCardDecorator.views(context, config) }
+    val views by produceState<android.widget.RemoteViews?>(initialValue = null, sceneKey) {
+        value = withContext(Dispatchers.Default) { ColorOsCardDecorator.views(context, config) }
+    }
     val description = stringResource(R.string.card_preview_cd)
     Box(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(28.dp))
+            .background(Color(0xFF090B0E))
             .background(previewBrushForCard(context, config.card))
             .padding(horizontal = 20.dp, vertical = 20.dp)
             .heightIn(min = 56.dp)
@@ -338,14 +412,19 @@ private fun DockSettings(card: ExpandedCardConfig, onUpdate: CardUpdate) {
         current.forEach { action ->
             val label = actionLabel(action)
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
-                val appPkg = when (action) {
-                    is CardAction.LaunchApp -> action.packageName
-                    is CardAction.AppShortcut -> action.packageName.takeIf { it.isNotBlank() }
-                    else -> null
+                val dockIcon by produceState<android.graphics.Bitmap?>(initialValue = null, action) {
+                    value = withContext(Dispatchers.IO) {
+                        val shortcut = (action as? CardAction.AppShortcut)?.iconId?.takeIf { it.isNotBlank() }
+                        val pkg = when (action) {
+                            is CardAction.LaunchApp -> action.packageName
+                            is CardAction.AppShortcut -> action.packageName.takeIf { it.isNotBlank() }
+                            else -> null
+                        }
+                        shortcut?.let { ShortcutIcons.load(context, it) } ?: pkg?.let { AppIconLoader.load(context, it, 120) }
+                    }
                 }
-                val app = appPkg?.let { pkg -> remember(pkg) { AppIconLoader.load(context, pkg, 120) } }
-                if (app != null) {
-                    Image(app.asImageBitmap(), null, modifier = Modifier.size(36.dp))
+                if (dockIcon != null) {
+                    Image(dockIcon!!.asImageBitmap(), null, modifier = Modifier.size(36.dp))
                 } else {
                     Icon(painterResource(AndroidCardStrings.actionIconRes(action)), contentDescription = null, modifier = Modifier.padding(6.dp))
                 }

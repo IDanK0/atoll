@@ -2,6 +2,7 @@
 <resources>
     <style name="Theme.Atoll" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">#090B0E</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 
     <style name="Theme.Atoll.Translucent" parent="android:Theme.Material.NoActionBar">

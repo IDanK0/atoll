@@ -21,7 +21,6 @@
     <!-- Modalità semplice -->
     <string name="simple_status_active">Pillola accesa</string>
     <string name="simple_status_off">Pillola spenta</string>
-    <string name="simple_smallest_supported_note">La misura più piccola che il telefono può mostrare</string>
     <string name="simple_calibrate_cta">Calibra le dimensioni</string>
     <string name="simple_calibrate_done_cta">Calibra di nuovo</string>
     <string name="simple_styles_title">Misura</string>
@@ -133,6 +132,8 @@
 
     <!-- Informazioni -->
     <string name="about_meta_version">Versione %1$s (%2$d)</string>
+    <string name="about_author_title">Autore</string>
+    <string name="about_author_body">Ideata e sviluppata da Daniele Malltezi.</string>
     <string name="about_privacy_title">Privacy</string>
     <string name="about_privacy_body">Atoll usa gli aggiornamenti in tempo reale di Android per mostrare la pillola. Il permesso facoltativo di apparire sopra le altre app serve solo per il righello di calibrazione. Atoll non usa i servizi di accessibilità, non legge le notifiche di altre app e non accede a Internet. Android può includere le impostazioni nel backup del dispositivo.</string>
     <string name="about_credits_title">Marchi</string>
@@ -204,6 +205,7 @@
     <string name="cal_float_select_preset">Il testo manuale è attivo. Scegli una misura per controllarne la larghezza.</string>
     <string name="cal_float_not_wider">Ogni pillola deve essere più larga della precedente. Se la pillola non è ancora cambiata, aspetta un attimo.</string>
     <string name="cal_float_min_out_of_range">La pillola più piccola non può superare 160 dp. Controlla di aver allineato il righello alla pillola piccola.</string>
+    <string name="cal_float_min_size">Questa misura è più stretta del minimo del telefono. Il righello mostra il riferimento; la pillola si ferma al minimo.</string>
     <string name="cal_float_max_size">Questa misura è più larga di quanto il telefono possa mostrare. Il righello mostra il riferimento; la pillola si ferma al massimo.</string>
     <string name="cal_float_save_failed">Non ho potuto salvare la misura. Riprova.</string>
     <string name="cal_float_saving">Salvataggio…</string>
@@ -401,6 +403,12 @@
     <string name="card_bg_plum">Viola</string>
     <string name="card_bg_amber">Ambra</string>
     <string name="card_bg_pitch">Nero</string>
+    <string name="card_bg_custom">Colore personalizzato</string>
+    <string name="card_bg_wheel_title">Scegli il colore dello sfondo</string>
+    <string name="card_bg_brightness">Luminosità</string>
+    <string name="card_bg_hex_label">Codice esadecimale</string>
+    <string name="card_bg_style_gradient">Dal nero al colore</string>
+    <string name="card_bg_style_solid">Tinta unita</string>
     <string name="card_counter_of">di %1$d</string>
     <string name="card_tools_choose">Scegli cosa estrarre</string>
     <string name="card_maker_presets">Modelli pronti</string>

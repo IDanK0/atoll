@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="UselessParent,ContentDescription,UseCompoundDrawables"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:forceDarkAllowed="false">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -36,6 +37,7 @@
                 <TextView
                     android:id="@+id/tl_value"
                     style="@style/CardValue"
+                    android:forceDarkAllowed="false"
                     android:textSize="30sp"
                     android:visibility="gone" />
 
@@ -43,6 +45,7 @@
                     android:id="@+id/tl_caption"
                     style="@style/CardCaption"
                     android:layout_marginTop="2dp"
+                    android:forceDarkAllowed="false"
                     android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>

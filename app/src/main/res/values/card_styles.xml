@@ -39,6 +39,7 @@
         <item name="android:background">@drawable/card_btn_circle</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 
     <style name="CardCircleIcon">
@@ -46,6 +47,7 @@
         <item name="android:layout_height">26dp</item>
         <item name="android:layout_gravity">center</item>
         <item name="android:importantForAccessibility">no</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 
     <style name="CardPill">
@@ -56,6 +58,7 @@
         <item name="android:clickable">true</item>
         <item name="android:drawablePadding">6dp</item>
         <item name="android:focusable">true</item>
+        <item name="android:forceDarkAllowed">false</item>
         <item name="android:gravity">center</item>
         <item name="android:maxLines">1</item>
         <item name="android:paddingStart">10dp</item>
@@ -68,6 +71,7 @@
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
+        <item name="android:forceDarkAllowed">false</item>
         <item name="android:gravity">center_horizontal</item>
         <item name="android:orientation">vertical</item>
         <item name="android:paddingTop">4dp</item>
@@ -79,6 +83,7 @@
     <style name="CardDockIcon">
         <item name="android:layout_width">46dp</item>
         <item name="android:layout_height">46dp</item>
+        <item name="android:forceDarkAllowed">false</item>
         <item name="android:importantForAccessibility">no</item>
         <item name="android:scaleType">fitCenter</item>
     </style>
@@ -88,6 +93,7 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">6dp</item>
         <item name="android:ellipsize">end</item>
+        <item name="android:forceDarkAllowed">false</item>
         <item name="android:maxLines">1</item>
         <item name="android:textColor">#E6FFFFFF</item>
         <item name="android:textSize">13sp</item>

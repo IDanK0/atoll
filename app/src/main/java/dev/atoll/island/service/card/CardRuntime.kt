@@ -98,13 +98,15 @@ object DeviceStatsReader {
         else -> ChargeState.DISCHARGING
     }
 
+    // i path delle frequenze CPU sono fissi per dispositivo: controllati una sola volta
+    private val cpuFreqFiles: List<File> by lazy {
+        (0 until 16).map { File("/sys/devices/system/cpu/cpu$it/cpufreq/scaling_cur_freq") }
+            .takeWhile { it.exists() }
+    }
+
     private fun readCpuMaxMhz(): Int? {
         var maxKhz = -1
-        for (cpu in 0 until 16) {
-            val file = File("/sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_cur_freq")
-            if (!file.exists()) {
-                if (cpu == 0) return null else break
-            }
+        for (file in cpuFreqFiles) {
             val khz = runCatching { file.readText().trim().toIntOrNull() }.getOrNull()
             if (khz != null && khz > maxKhz) maxKhz = khz
         }

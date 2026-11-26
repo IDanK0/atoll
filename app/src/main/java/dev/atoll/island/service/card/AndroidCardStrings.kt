@@ -178,6 +178,7 @@ class AndroidCardStrings(private val context: Context) : CardStrings, SceneStrin
             CardBackground.PLUM -> R.string.card_bg_plum
             CardBackground.AMBER -> R.string.card_bg_amber
             CardBackground.PITCH -> R.string.card_bg_pitch
+            CardBackground.CUSTOM -> R.string.card_bg_custom
         }
 
         fun statLabelRes(metric: StatMetric): Int = when (metric) {

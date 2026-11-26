@@ -87,7 +87,8 @@ internal class CalibrationOverlayController(
     private var measuredMinDp = 0f
     private var measuredMidDp = 0f
     private var color = 0
-    private var below = false
+    // parte sotto la pillola così resta sempre visibile, anche con preset più stretti della capsula
+    private var below = true
     private var panelBottomPx = dp(96)
     private var yOffsetPx = geometry.yOffsetPx
 
@@ -253,7 +254,7 @@ internal class CalibrationOverlayController(
         panel.showSelection(config.selectedPreset)
         showWarning(when {
             config.manualTextEnabled -> R.string.cal_float_select_preset
-            solved.wasClampedByMin -> R.string.simple_smallest_supported_note
+            solved.wasClampedByMin -> R.string.cal_float_min_size
             solved.wasClampedByMax -> R.string.cal_float_max_size
             else -> null
         })
@@ -266,6 +267,7 @@ internal class CalibrationOverlayController(
     private fun showOptions() {
         val (colorValue, name) = COLORS[color]
         bar.rulerColor = colorValue
+        bar.pointsUp = below
         panel.showOptions(colorValue, name, below)
     }
 
@@ -286,7 +288,7 @@ internal class CalibrationOverlayController(
         val centerY = topCutout?.centerY() ?: geometry.cutoutCenterYpx
         val maxWidth = bounds.width().coerceAtLeast(1)
         barParams.width = dp(widthDp).coerceIn(1, maxWidth)
-        barParams.height = dp(12)
+        barParams.height = dp(14)
         barParams.x = topCutout?.centerX()?.minus(maxWidth / 2) ?: 0
         barParams.y = CalibrationMath.barTopPx(centerY, statusBarHeight, barParams.height, yOffsetPx) +
             if (below) dp(24) else 0
