@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <uses-permission android:name="android.permission.READ_LOGS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 
     <!-- app da aprire dalla scheda e pacchetti di icone da usare al posto delle icone originali -->
     <queries>
@@ -19,6 +25,12 @@
         </intent>
         <intent>
             <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.VIDEO_CAMERA" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.ASSIST" />
         </intent>
         <intent>
             <action android:name="android.intent.action.DIAL" />
@@ -53,6 +65,29 @@
         <intent>
             <action android:name="ginlemon.smartlauncher.THEMES" />
         </intent>
+        <intent>
+            <action android:name="android.provider.MediaStore.RECORD_SOUND" />
+        </intent>
+        <intent>
+            <action android:name="oplus.intent.action.settings.SMART_KEY_FRAGMENT" />
+        </intent>
+        <intent>
+            <action android:name="oplus.intent.action.settings.AI_SMART_KEY_FRAGMENT" />
+        </intent>
+        <intent>
+            <action android:name="com.oplus.gesture.StartActionButtonSettingsActivity" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <package android:name="moe.shizuku.privileged.api" />
+        <package android:name="com.oneplus.soundrecorder" />
+        <package android:name="com.coloros.soundrecorder" />
     </queries>
 
     <application
@@ -105,6 +140,14 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/card_files" />
         </provider>
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <service
             android:name=".service.AtollTileService"

@@ -29,11 +29,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
+import dev.atoll.island.ui.components.AtollSlider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -278,7 +278,7 @@ private fun MeasurePill(state: CalibrationPanelState, actions: CalibrationPanelA
             }
         }
     }
-    Slider(
+    AtollSlider(
         value = width.toFloat(),
         onValueChange = { actions.changeWidth(it.roundToInt()) },
         valueRange = CalibrationMath.MIN_WIDTH_DP.toFloat()..CalibrationMath.MAX_WIDTH_DP.toFloat(),

@@ -13,12 +13,17 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -27,9 +32,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -47,11 +54,20 @@ import dev.atoll.island.data.model.NotificationTemplateStyle
 import dev.atoll.island.data.model.OnboardingStep
 import dev.atoll.island.data.model.PaddingGlyph
 import dev.atoll.island.data.model.PromotionDiagnostics
+import dev.atoll.island.data.model.SideKeyConfig
+import dev.atoll.island.data.model.SideKeyDiagnostics
+import dev.atoll.island.data.model.SideKeyGesture
 import dev.atoll.island.data.model.SmallIconMode
 import dev.atoll.island.data.model.TitleMode
 import dev.atoll.island.domain.OnboardingCoordinator
 import dev.atoll.island.ui.card.AdvancedCardSection
 import dev.atoll.island.ui.card.ExpandedCardSection
+import dev.atoll.island.ui.sidekey.ColorOsPermissionGuideDialog
+import dev.atoll.island.ui.sidekey.SideKeyActionPickerSheet
+import dev.atoll.island.ui.sidekey.SideKeyDetectKeyDialog
+import dev.atoll.island.ui.sidekey.SideKeyUiActions
+import dev.atoll.island.ui.sidekey.SideKeyWizardScreen
+import dev.atoll.island.ui.sidekey.sideKeyTabItems
 import dev.atoll.island.ui.components.AboutAndLicensesDialog
 import dev.atoll.island.ui.components.CardGap
 import dev.atoll.island.ui.components.CustomWidthCard
@@ -101,6 +117,8 @@ interface DashboardActions {
     fun updateCard(transform: (ExpandedCardConfig) -> ExpandedCardConfig)
 }
 
+enum class DashboardTab { ISLAND, SIDE_KEY }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AtollDashboardScreen(
@@ -111,11 +129,49 @@ fun AtollDashboardScreen(
     displayMetrics: DeviceDisplayMetrics,
     adaptiveResult: AdaptivePaddingResult,
     sentText: String,
-    actions: DashboardActions
+    actions: DashboardActions,
+    sideKeyConfig: SideKeyConfig,
+    sideKeyDiagnostics: SideKeyDiagnostics,
+    adbGrantCommand: String,
+    sideKeyActions: SideKeyUiActions,
+    showColorOsUnlockHelp: Boolean,
+    onDismissColorOsUnlockHelp: () -> Unit
 ) {
-    var showAbout by remember { mutableStateOf(false) }
+    var showAbout by rememberSaveable { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf(DashboardTab.ISLAND) }
+    var pickingGesture by rememberSaveable { mutableStateOf<SideKeyGesture?>(null) }
+    var showDetectKey by rememberSaveable { mutableStateOf(false) }
+    val showSideKeyWizard = sideKeyConfig.isWizardActive
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val active = config.enabled || isServiceRunning
+
+    LaunchedEffect(showSideKeyWizard) {
+        if (showSideKeyWizard) selectedTab = DashboardTab.SIDE_KEY
+    }
+
+    if (showSideKeyWizard) {
+        SideKeyWizardScreen(
+            sideKeyConfig = sideKeyConfig,
+            diagnostics = sideKeyDiagnostics,
+            adbCommand = adbGrantCommand,
+            actions = sideKeyActions,
+            showColorOsGuideInitially = showColorOsUnlockHelp,
+            onDismissColorOsGuide = onDismissColorOsUnlockHelp,
+            onFinishAndEnable = {
+                sideKeyActions.updateConfig {
+                    it.copy(
+                        enabled = true,
+                        setupDismissed = true,
+                        wizardStep = SideKeyConfig.WIZARD_NONE
+                    )
+                }
+            },
+            onClose = {
+                sideKeyActions.updateConfig { it.copy(wizardStep = SideKeyConfig.WIZARD_NONE) }
+            }
+        )
+        return
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -125,12 +181,34 @@ fun AtollDashboardScreen(
                 actions = {
                     OverflowMenu(
                         onCalibrate = actions::openCalibration,
-                        onSetup = actions::rerunSetup,
+                        onSetup = {
+                            if (selectedTab == DashboardTab.SIDE_KEY) {
+                                sideKeyActions.updateConfig { it.copy(wizardStep = 0) }
+                            } else {
+                                actions.rerunSetup()
+                            }
+                        },
                         onAbout = { showAbout = true }
                     )
                 },
                 scrollBehavior = scrollBehavior
             )
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = selectedTab == DashboardTab.ISLAND,
+                    onClick = { selectedTab = DashboardTab.ISLAND },
+                    icon = { Icon(Icons.Rounded.Smartphone, contentDescription = null) },
+                    label = { Text(stringResource(R.string.tab_island)) }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == DashboardTab.SIDE_KEY,
+                    onClick = { selectedTab = DashboardTab.SIDE_KEY },
+                    icon = { Icon(Icons.Rounded.TouchApp, contentDescription = null) },
+                    label = { Text(stringResource(R.string.sidekey_tab_label)) }
+                )
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -142,12 +220,61 @@ fun AtollDashboardScreen(
             verticalArrangement = Arrangement.spacedBy(CardGap)
         ) {
             item(key = "mode") { ModeSwitch(isAdvancedMode, actions::setAdvancedMode) }
-            if (isAdvancedMode) {
-                expertSections(config, active, diagnostics, displayMetrics, adaptiveResult, sentText, actions)
-            } else {
-                basicSections(config, active, diagnostics, displayMetrics, adaptiveResult, actions)
+            when (selectedTab) {
+                DashboardTab.ISLAND -> if (isAdvancedMode) {
+                    expertSections(config, active, diagnostics, displayMetrics, adaptiveResult, sentText, actions)
+                } else {
+                    basicSections(config, active, diagnostics, displayMetrics, adaptiveResult, actions)
+                }
+                DashboardTab.SIDE_KEY -> sideKeyTabItems(
+                    config = sideKeyConfig,
+                    diagnostics = sideKeyDiagnostics,
+                    adbCommand = adbGrantCommand,
+                    isAdvancedMode = isAdvancedMode,
+                    actions = sideKeyActions,
+                    onPickGesture = { pickingGesture = it },
+                    onOpenDetectKey = { showDetectKey = true },
+                    onOpenWizard = { sideKeyActions.updateConfig { it.copy(wizardStep = 0) } }
+                )
             }
         }
+    }
+
+    pickingGesture?.let { gesture ->
+        SideKeyActionPickerSheet(
+            gesture = gesture,
+            currentAction = sideKeyConfig.actionFor(gesture),
+            onDismiss = { pickingGesture = null },
+            onSelect = { chosen ->
+                sideKeyActions.updateConfig { current ->
+                    val updated = current.bindingFor(gesture).copy(action = chosen)
+                    current.copy(bindings = current.bindings + (gesture to updated))
+                }
+                pickingGesture = null
+            }
+        )
+    }
+
+    if (showDetectKey) {
+        SideKeyDetectKeyDialog(
+            onDismiss = { showDetectKey = false },
+            onApplyPattern = { pattern ->
+                sideKeyActions.updateConfig { it.copy(filterPattern = pattern) }
+                showDetectKey = false
+            }
+        )
+    }
+
+    if (showColorOsUnlockHelp) {
+        ColorOsPermissionGuideDialog(
+            diagnostics = sideKeyDiagnostics,
+            adbCommand = adbGrantCommand,
+            actions = sideKeyActions,
+            onOpenedLanguageSettings = {
+                sideKeyActions.updateConfig { it.copy(wizardLanguageSwitched = true) }
+            },
+            onDismiss = onDismissColorOsUnlockHelp
+        )
     }
 
     if (showAbout) AboutAndLicensesDialog(onDismiss = { showAbout = false })

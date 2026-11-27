@@ -19,6 +19,7 @@ import dev.atoll.island.data.model.NotificationChannelMode
 import dev.atoll.island.data.model.NotificationTemplateStyle
 import dev.atoll.island.data.model.PaddingGlyph
 import dev.atoll.island.data.model.SmallIconMode
+import dev.atoll.island.data.model.SideKeyConfig
 import dev.atoll.island.data.model.TitleMode
 import dev.atoll.island.domain.CalibrationMath
 import dev.atoll.island.domain.CapsulePaddingGenerator
@@ -77,7 +78,21 @@ class LiveAlertPreferencesRepository private constructor(context: Context) {
         initialValue = null
     )
 
+    val sideKeyConfigFlow: Flow<SideKeyConfig> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { prefs -> SideKeyPreferences.read(prefs) }
+
+    val sideKeyConfig: StateFlow<SideKeyConfig> = sideKeyConfigFlow.stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = SideKeyConfig()
+    )
+
     suspend fun getLatestConfig(): LiveAlertConfig = configFlow.first()
+
+    suspend fun getLatestSideKeyConfig(): SideKeyConfig = sideKeyConfigFlow.first()
 
     suspend fun setEnabled(enabled: Boolean) {
         dataStore.edit { it[KEY_ENABLED] = enabled }
@@ -235,6 +250,15 @@ class LiveAlertPreferencesRepository private constructor(context: Context) {
             .mapNotNull { it.iconId.takeIf { id -> id.isNotBlank() } }
             .toSet()
         ShortcutIcons.prune(appContext, keepShortcutIcons)
+        return updated
+    }
+
+    suspend fun updateSideKey(transform: (SideKeyConfig) -> SideKeyConfig): SideKeyConfig {
+        var updated = SideKeyConfig()
+        dataStore.edit { prefs ->
+            updated = transform(SideKeyPreferences.read(prefs))
+            SideKeyPreferences.write(prefs, updated)
+        }
         return updated
     }
 

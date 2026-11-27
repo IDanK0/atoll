@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -145,7 +147,7 @@ fun SliderRow(
             )
         }
         if (supporting != null) SupportingText(supporting, Modifier.padding(top = 2.dp))
-        Slider(
+        AtollSlider(
             value = value.coerceIn(valueRange),
             onValueChange = onValueChange,
             valueRange = valueRange,
@@ -159,6 +161,35 @@ fun SliderRow(
                 }
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AtollSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    steps: Int = 0,
+    onValueChangeFinished: (() -> Unit)? = null
+) {
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        valueRange = valueRange,
+        steps = steps,
+        onValueChangeFinished = onValueChangeFinished,
+        track = { sliderState ->
+            SliderDefaults.Track(
+                sliderState = sliderState,
+                enabled = enabled,
+                drawStopIndicator = {}
+            )
+        }
+    )
 }
 
 // ok = null quando il controllo ora non serve: grigio, non rosso

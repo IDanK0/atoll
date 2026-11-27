@@ -2,6 +2,8 @@ package dev.atoll.island.ui
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -42,6 +44,8 @@ import dev.atoll.island.data.model.NotificationChannelMode
 import dev.atoll.island.data.model.NotificationTemplateStyle
 import dev.atoll.island.data.model.OnboardingStep
 import dev.atoll.island.data.model.PaddingGlyph
+import dev.atoll.island.data.model.SideKeyConfig
+import dev.atoll.island.data.model.SideKeyGesture
 import dev.atoll.island.data.model.SmallIconMode
 import dev.atoll.island.data.model.TitleMode
 import dev.atoll.island.data.model.WizardLaunchRequest
@@ -49,19 +53,26 @@ import dev.atoll.island.data.prefs.LiveAlertPreferencesRepository
 import dev.atoll.island.domain.CapsulePaddingGenerator
 import dev.atoll.island.service.AtollLiveAlertService
 import dev.atoll.island.service.LiveAlertNotificationBuilder
+import dev.atoll.island.service.sidekey.ActionExecutionResult
+import dev.atoll.island.service.sidekey.ShizukuGrantHelper
+import dev.atoll.island.service.sidekey.SideKeyActionExecutor
+import dev.atoll.island.service.sidekey.SideKeyMonitor
 import dev.atoll.island.ui.onboarding.SetupWizardScreen
+import dev.atoll.island.ui.sidekey.SideKeyUiActions
 import dev.atoll.island.ui.theme.AtollTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var repository: LiveAlertPreferencesRepository
     private var shownRationale = false
     private var showOverlayPermission by mutableStateOf(false)
+    private var showColorOsUnlockHelp by mutableStateOf(false)
     private var waitingForOverlaySettings = false
     private var launchingCalibration = false
     private var wizardRequest by mutableStateOf<WizardLaunchRequest?>(null)
@@ -86,7 +97,7 @@ class MainActivity : ComponentActivity() {
                 when {
                     enabled && !hasNotificationPermission() -> askNotificationPermission()
                     enabled -> AtollLiveAlertService.start(this@MainActivity)
-                    else -> AtollLiveAlertService.stop(this@MainActivity)
+                    else -> AtollLiveAlertService.stopCapsule(this@MainActivity)
                 }
             }
         }
@@ -119,6 +130,167 @@ class MainActivity : ComponentActivity() {
         override fun updateCard(transform: (ExpandedCardConfig) -> ExpandedCardConfig) = save { updateCard(transform) }
     }
 
+    private val shizukuBinderListener = Shizuku.OnBinderReceivedListener {
+        SideKeyMonitor.refreshStaticPermissions(this)
+    }
+
+    private val shizukuDeadListener = Shizuku.OnBinderDeadListener {
+        SideKeyMonitor.refreshStaticPermissions(this)
+    }
+
+    private val shizukuPermissionListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+        SideKeyMonitor.refreshStaticPermissions(this)
+        if (requestCode == ShizukuGrantHelper.REQUEST_CODE_SHIZUKU &&
+            grantResult == PackageManager.PERMISSION_GRANTED
+        ) {
+            performShizukuGrant()
+        }
+    }
+
+    private val sideKeyActions = object : SideKeyUiActions {
+        override fun setEnabled(enabled: Boolean) {
+            lifecycleScope.launch {
+                repository.updateSideKey { it.copy(enabled = enabled) }
+                SideKeyMonitor.refreshStaticPermissions(this@MainActivity)
+                if (enabled && ShizukuGrantHelper.hasReadLogsPermission(this@MainActivity)) {
+                    AtollLiveAlertService.startSideKey(this@MainActivity)
+                } else if (!enabled && !repository.getLatestConfig().enabled) {
+                    AtollLiveAlertService.stop(this@MainActivity)
+                }
+            }
+        }
+
+        override fun reconnect() {
+            SideKeyMonitor.refreshStaticPermissions(this@MainActivity)
+            if (ShizukuGrantHelper.hasReadLogsPermission(this@MainActivity)) {
+                AtollLiveAlertService.reconnectSideKey(this@MainActivity)
+            }
+        }
+
+        override fun updateConfig(transform: (SideKeyConfig) -> SideKeyConfig) {
+            lifecycleScope.launch {
+                val updated = repository.updateSideKey(transform)
+                SideKeyMonitor.refreshStaticPermissions(this@MainActivity)
+                if (updated.enabled && ShizukuGrantHelper.hasReadLogsPermission(this@MainActivity)) {
+                    AtollLiveAlertService.startSideKey(this@MainActivity)
+                }
+            }
+        }
+
+        override fun testGesture(gesture: SideKeyGesture) {
+            val binding = repository.sideKeyConfig.value.bindingFor(gesture)
+            lifecycleScope.launch {
+                when (SideKeyActionExecutor.execute(this@MainActivity, binding.action, ignoreLockCheck = true)) {
+                    ActionExecutionResult.NeedsDndAccess -> openDndSettings()
+                    ActionExecutionResult.NeedsShizuku -> {
+                        val status = ShizukuGrantHelper.inspect(this@MainActivity)
+                        if (status.running) grantViaShizuku() else openShizuku()
+                    }
+                    ActionExecutionResult.Unavailable -> Toast.makeText(
+                        this@MainActivity,
+                        R.string.sidekey_action_unavailable,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    ActionExecutionResult.Executed, ActionExecutionResult.BlockedLocked -> Unit
+                }
+            }
+        }
+
+        override fun openButtonSettings() = launchFirstAvailable(
+            Intent("oplus.intent.action.settings.AI_SMART_KEY_FRAGMENT"),
+            Intent("oplus.intent.action.settings.SMART_KEY_FRAGMENT"),
+            Intent("com.oplus.gesture.StartActionButtonSettingsActivity"),
+            Intent(Settings.ACTION_SETTINGS).addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            )
+        )
+
+        override fun copyAdbCommand() {
+            val cmd = adbGrantCommand()
+            getSystemService(ClipboardManager::class.java)
+                ?.setPrimaryClip(ClipData.newPlainText("ADB command", cmd))
+            Toast.makeText(this@MainActivity, R.string.sidekey_cmd_copied, Toast.LENGTH_SHORT).show()
+        }
+
+        override fun openDeveloperOptions() {
+            val targetKey = "safecenter_system_optimization"
+            val fragmentArgs = Bundle().apply {
+                putString(":settings:fragment_args_key", targetKey)
+                putBoolean(":settings:fragment_args_color_preferece", true)
+            }
+            launchFirstAvailable(
+                Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply {
+                    putExtra(":settings:fragment_args_key", targetKey)
+                    putExtra(":settings:show_fragment_args", fragmentArgs)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                },
+                Intent(Settings.ACTION_DEVICE_INFO_SETTINGS),
+                Intent(Settings.ACTION_SETTINGS)
+            )
+        }
+
+        override fun openLanguageSettings() = launchFirstAvailable(
+            Intent().setClassName(
+                "com.android.settings",
+                "com.android.settings.Settings\$LocalePickerActivity"
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+            Intent(Settings.ACTION_LOCALE_SETTINGS).setPackage("com.android.settings"),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+
+        override fun grantViaShizuku() {
+            val status = ShizukuGrantHelper.inspect(this@MainActivity)
+            if (!status.running) return
+            if (!status.permissionGranted) {
+                ShizukuGrantHelper.requestPermission()
+            } else {
+                performShizukuGrant()
+            }
+        }
+
+        override fun openShizuku() {
+            val launch = packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+            launchFirstAvailable(
+                *(if (launch != null) arrayOf(launch) else emptyArray()),
+                Intent(Intent.ACTION_VIEW, "market://details?id=moe.shizuku.privileged.api".toUri()),
+                Intent(Intent.ACTION_VIEW, "https://shizuku.rikka.app/".toUri())
+            )
+        }
+
+        override fun openOverlaySettings() = launchFirstAvailable(
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri()),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri())
+        )
+
+        override fun openAppInfoSettings() = this@MainActivity.openAppInfoSettings()
+
+        override fun openDndSettings() = SideKeyActionExecutor.openDndAccessSettings(this@MainActivity)
+    }
+
+    private fun adbGrantCommand(): String = "adb shell pm grant $packageName ${Manifest.permission.READ_LOGS}"
+
+    private fun performShizukuGrant() {
+        lifecycleScope.launch {
+            val granted = ShizukuGrantHelper.grantReadLogs(this@MainActivity)
+            SideKeyMonitor.refreshStaticPermissions(this@MainActivity)
+            if (granted) {
+                showColorOsUnlockHelp = false
+                Toast.makeText(this@MainActivity, R.string.sidekey_shizuku_granted, Toast.LENGTH_SHORT).show()
+                if (repository.getLatestSideKeyConfig().enabled) {
+                    AtollLiveAlertService.startSideKey(this@MainActivity)
+                }
+            } else {
+                showColorOsUnlockHelp = true
+            }
+        }
+    }
+
+    private fun launchFirstAvailable(vararg intents: Intent) {
+        for (intent in intents) {
+            if (runCatching { startActivity(intent) }.isSuccess) return
+        }
+    }
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -143,24 +315,40 @@ class MainActivity : ComponentActivity() {
 
         repository = LiveAlertPreferencesRepository.getInstance(applicationContext)
         waitingForOverlaySettings = savedInstanceState?.getBoolean("waitingForOverlaySettings") ?: false
+        showColorOsUnlockHelp = savedInstanceState?.getBoolean("showColorOsUnlockHelp") ?: false
         AtollLiveAlertService.refreshDiagnostics(this, repository.config.value)
+        runCatching {
+            Shizuku.addBinderReceivedListenerSticky(shizukuBinderListener)
+            Shizuku.addBinderDeadListener(shizukuDeadListener)
+            Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
+        }
+        SideKeyMonitor.refreshStaticPermissions(this)
 
         setContent {
             AtollTheme {
                 val config by repository.config.collectAsStateWithLifecycle()
                 val uiPrefs by repository.uiPreferences.collectAsStateWithLifecycle()
                 val isServiceRunning by AtollLiveAlertService.isRunning.collectAsStateWithLifecycle()
+                val isServiceAlive by AtollLiveAlertService.isServiceAlive.collectAsStateWithLifecycle()
                 val diagnostics by AtollLiveAlertService.diagnostics.collectAsStateWithLifecycle()
                 val displayMetrics by AtollLiveAlertService.displayMetrics.collectAsStateWithLifecycle()
                 val solvedState by AtollLiveAlertService.adaptiveResult.collectAsStateWithLifecycle()
-
+                val sideKeyConfig by repository.sideKeyConfig.collectAsStateWithLifecycle()
+                val sideKeyDiagnostics by SideKeyMonitor.diagnostics.collectAsStateWithLifecycle()
 
                 LaunchedEffect(config) {
                     AtollLiveAlertService.refreshDiagnostics(this@MainActivity, config)
                     if (config.enabled && !isServiceRunning && !launchingCalibration && hasNotificationPermission()) {
                         AtollLiveAlertService.start(this@MainActivity)
                     } else if (!config.enabled && isServiceRunning) {
-                        AtollLiveAlertService.stop(this@MainActivity)
+                        AtollLiveAlertService.stopCapsule(this@MainActivity)
+                    }
+                }
+
+                LaunchedEffect(sideKeyConfig) {
+                    SideKeyMonitor.refreshStaticPermissions(this@MainActivity)
+                    if (sideKeyConfig.enabled && !isServiceAlive && ShizukuGrantHelper.hasReadLogsPermission(this@MainActivity)) {
+                        AtollLiveAlertService.startSideKey(this@MainActivity)
                     }
                 }
 
@@ -232,7 +420,13 @@ class MainActivity : ComponentActivity() {
                             config.debugVisibleMode,
                             config.debugGlyph
                         ),
-                        actions = dashboardActions
+                        actions = dashboardActions,
+                        sideKeyConfig = sideKeyConfig,
+                        sideKeyDiagnostics = sideKeyDiagnostics,
+                        adbGrantCommand = adbGrantCommand(),
+                        sideKeyActions = sideKeyActions,
+                        showColorOsUnlockHelp = showColorOsUnlockHelp,
+                        onDismissColorOsUnlockHelp = { showColorOsUnlockHelp = false }
                     )
                 }
 
@@ -266,6 +460,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         captureDisplayCutoutWidth()
         AtollLiveAlertService.refreshDiagnostics(this, repository.config.value)
+        SideKeyMonitor.refreshStaticPermissions(this)
         if (waitingForOverlaySettings) {
             waitingForOverlaySettings = false
             if (Settings.canDrawOverlays(this)) {
@@ -279,8 +474,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        runCatching {
+            Shizuku.removeBinderReceivedListener(shizukuBinderListener)
+            Shizuku.removeBinderDeadListener(shizukuDeadListener)
+            Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
+        }
+        super.onDestroy()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean("waitingForOverlaySettings", waitingForOverlaySettings)
+        outState.putBoolean("showColorOsUnlockHelp", showColorOsUnlockHelp)
         super.onSaveInstanceState(outState)
     }
 

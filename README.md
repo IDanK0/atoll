@@ -22,11 +22,17 @@ tap the pill to open it. You can keep up to four shortcuts in there, write a not
 
 For the background I kept the presets, but you can pick your own color too, either solid or fading in from black. If you want to put the whole card together yourself, pick Template. You can edit the JSON in the app or import a file.
 
+## Side Key
+
+I wanted the Plus Key to do more than one thing. In the Side Key tab you can set what happens when you press it once, twice, three times or hold it. A press can open an app or shortcut, change the volume, send a custom Atoll notification or run a few actions in a row.
+
+Open **Side Key → Start guided setup** to get started. The guide shows how to turn off the phone’s own button action and give Atoll access to the system logs. You can grant that access with ADB or Shizuku. Silent mode without Do Not Disturb needs Shizuku running. I tried the setup on a OnePlus 15 with ColorOS 17; other devices may log the button differently.
+
 ## How the pill works
 
 Atoll posts a Live Update and ColorOS draws the pill. I put invisible characters in the short text of the notification (`shortCriticalText`) so ColorOS makes it wider.
 
-The ruler is the only thing that needs "Display over other apps". Timer shortcuts go to the Clock app, there's no timer inside Atoll. The app doesn't use the internet, need accessibility access or read your other notifications.
+“Display over other apps” is used for the ruler and helps Side Key open apps in the background. Timer shortcuts go to the Clock app. Atoll doesn’t use the internet, need accessibility access or read your other notifications.
 
 ## Build
 

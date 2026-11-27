@@ -5,8 +5,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.media.AudioManager
-import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.core.app.RemoteInput
 import dev.atoll.island.R
@@ -55,9 +53,9 @@ class AtollCardActionReceiver : BroadcastReceiver() {
             CardAction.ToggleFlashlight -> {
                 if (!TorchController.toggle(context)) confirm(context, context.getString(R.string.card_confirm_torch_unavailable))
             }
-            CardAction.MediaPlayPause -> mediaKey(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-            CardAction.MediaNext -> mediaKey(context, KeyEvent.KEYCODE_MEDIA_NEXT)
-            CardAction.MediaPrevious -> mediaKey(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+            CardAction.MediaPlayPause -> MediaKeyDispatcher.dispatch(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+            CardAction.MediaNext -> MediaKeyDispatcher.dispatch(context, KeyEvent.KEYCODE_MEDIA_NEXT)
+            CardAction.MediaPrevious -> MediaKeyDispatcher.dispatch(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
             is CardAction.CopySnippet -> {
                 context.getSystemService(ClipboardManager::class.java)
                     ?.setPrimaryClip(ClipData.newPlainText(action.label, action.text))
@@ -73,13 +71,6 @@ class AtollCardActionReceiver : BroadcastReceiver() {
         AtollLiveAlertService.refreshCard(context)
         delay(CardTransientState.SHOW_MS + 100)
         AtollLiveAlertService.refreshCard(context)
-    }
-
-    private fun mediaKey(context: Context, code: Int) {
-        val audio = context.getSystemService(AudioManager::class.java) ?: return
-        val time = SystemClock.uptimeMillis()
-        audio.dispatchMediaKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_DOWN, code, 0))
-        audio.dispatchMediaKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_UP, code, 0))
     }
 
     companion object {

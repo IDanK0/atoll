@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
@@ -16,6 +17,7 @@ import android.os.PowerManager
 import android.os.StatFs
 import android.os.SystemClock
 import android.util.Log
+import android.view.KeyEvent
 import dev.atoll.island.data.model.ChargeState
 import dev.atoll.island.domain.card.DeviceStats
 import kotlinx.coroutines.delay
@@ -163,15 +165,31 @@ object TorchController {
         val id = cameraId ?: return false
         if (torchOn == null) delay(200)
         val manager = context.getSystemService(CameraManager::class.java) ?: return false
-        return try {
-            manager.setTorchMode(id, torchOn != true)
-            true
-        } catch (error: CameraAccessException) {
-            Log.w("AtollTorch", "Torch unavailable", error)
-            false
-        } catch (error: IllegalArgumentException) {
-            Log.w("AtollTorch", "Torch unavailable", error)
-            false
+        val targetOn = torchOn != true
+        repeat(2) { attempt ->
+            try {
+                manager.setTorchMode(id, targetOn)
+                return true
+            } catch (error: CameraAccessException) {
+                if (attempt == 0) {
+                    delay(120)
+                } else {
+                    Log.w("AtollTorch", "Torch unavailable", error)
+                }
+            } catch (error: IllegalArgumentException) {
+                Log.w("AtollTorch", "Torch unavailable", error)
+                return false
+            }
         }
+        return false
+    }
+}
+
+object MediaKeyDispatcher {
+    fun dispatch(context: Context, keyCode: Int) {
+        val audio = context.getSystemService(AudioManager::class.java) ?: return
+        val time = SystemClock.uptimeMillis()
+        audio.dispatchMediaKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_DOWN, keyCode, 0))
+        audio.dispatchMediaKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_UP, keyCode, 0))
     }
 }

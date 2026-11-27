@@ -40,6 +40,7 @@ import dev.atoll.island.domain.card.CustomCardParser
 import dev.atoll.island.domain.card.CustomCardPresets
 import dev.atoll.island.domain.card.StatSelection
 import dev.atoll.island.service.card.TorchController
+import dev.atoll.island.service.sidekey.SideKeyMonitor
 import dev.atoll.island.ui.MainActivity
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
@@ -50,6 +51,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -59,6 +61,7 @@ class AtollLiveAlertService : LifecycleService() {
     private var notificationManager: NotificationManager? = null
     private var displayManager: DisplayManager? = null
     private var hasEnteredForeground = false
+    private var inSideKeyStandby = false
     private var lastAppliedConfig: LiveAlertConfig? = null
     private var lastAppliedMetrics: DeviceDisplayMetrics? = null
     private var calibrationText: String? = null
@@ -71,6 +74,7 @@ class AtollLiveAlertService : LifecycleService() {
     private var batteryRegistered = false
     private var tickRegistered = false
     private var statsTickerJob: Job? = null
+    private var sideKeyMonitor: SideKeyMonitor? = null
     private data class UpdateRequest(val config: LiveAlertConfig, val force: Boolean, val scheduleVerification: Boolean)
     private val updateQueue = Channel<UpdateRequest>(Channel.CONFLATED)
 
@@ -117,7 +121,7 @@ class AtollLiveAlertService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
-        _isRunning.value = true
+        _isServiceAlive.value = true
         notificationManager = getSystemService(NotificationManager::class.java)
         displayManager = getSystemService(DisplayManager::class.java)
         lastDisplayState = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)?.state
@@ -130,8 +134,15 @@ class AtollLiveAlertService : LifecycleService() {
         )
 
         val repo = LiveAlertPreferencesRepository.getInstance(applicationContext)
+        sideKeyMonitor = SideKeyMonitor(this, lifecycleScope, repo).also { it.start() }
+
         val initialConfig = repo.config.value
-        postOrUpdateForeground(initialConfig, force = true)
+        val initialSideKey = repo.sideKeyConfig.value
+        if (initialConfig.enabled || !initialSideKey.enabled) {
+            postOrUpdateForeground(initialConfig, force = true)
+        } else {
+            enterSideKeyStandby(initialConfig)
+        }
 
         lifecycleScope.launch(Dispatchers.Default) {
             for (req in updateQueue) {
@@ -140,14 +151,19 @@ class AtollLiveAlertService : LifecycleService() {
         }
 
         lifecycleScope.launch {
-            repo.config.collect { config ->
-                // appena accesa lo StateFlow può dire ancora off, ricontrollo il valore salvato
-                if (!config.enabled && hasEnteredForeground && !repo.getLatestConfig().enabled) {
-                    stopSelf()
-                } else if (config.enabled || !hasEnteredForeground) {
-                    postOrUpdateForeground(config, force = false)
+            combine(repo.config, repo.sideKeyConfig) { config, sideKey -> config to sideKey }
+                .collect { (config, sideKey) ->
+                    // appena accesa lo StateFlow può dire ancora off, ricontrollo il valore salvato
+                    if (!config.enabled && !sideKey.enabled && hasEnteredForeground &&
+                        !repo.getLatestConfig().enabled && !repo.getLatestSideKeyConfig().enabled
+                    ) {
+                        stopSelf()
+                    } else if (config.enabled) {
+                        postOrUpdateForeground(config, force = inSideKeyStandby)
+                    } else if (sideKey.enabled || !hasEnteredForeground) {
+                        enterSideKeyStandby(config)
+                    }
                 }
-            }
         }
 
         AtollTileService.requestTileSync(applicationContext)
@@ -158,6 +174,16 @@ class AtollLiveAlertService : LifecycleService() {
         when (intent?.action) {
             ACTION_START_CALIBRATION -> openCalibration()
             ACTION_STOP_CALIBRATION -> closeCalibration()
+            ACTION_START_SIDEKEY -> sideKeyMonitor?.ensureStarted()
+            ACTION_RECONNECT_SIDEKEY -> sideKeyMonitor?.reconnect()
+            ACTION_STOP_CAPSULE -> lifecycleScope.launch {
+                val repo = LiveAlertPreferencesRepository.getInstance(applicationContext)
+                if (!repo.getLatestSideKeyConfig().enabled) {
+                    stopSelf()
+                } else {
+                    enterSideKeyStandby(repo.getLatestConfig())
+                }
+            }
             ACTION_DEBUG_SAMPLE -> if (BuildConfig.DEBUG && calibration == null) {
                 calibrationText = intent.getStringExtra(EXTRA_SAMPLE)
                 val config = LiveAlertPreferencesRepository.getInstance(applicationContext).config.value
@@ -249,10 +275,14 @@ class AtollLiveAlertService : LifecycleService() {
         closeCalibration(restoreNotification = false)
         verificationJob?.cancel()
         verificationJob = null
+        sideKeyMonitor?.destroy()
+        sideKeyMonitor = null
         stopCardMonitors()
         displayManager?.unregisterDisplayListener(displayListener)
+        _isServiceAlive.value = false
         _isRunning.value = false
         hasEnteredForeground = false
+        inSideKeyStandby = false
         lastAppliedConfig = null
         lastAppliedMetrics = null
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -278,6 +308,7 @@ class AtollLiveAlertService : LifecycleService() {
         force: Boolean,
         scheduleVerification: Boolean = true
     ) {
+        if (!config.enabled && hasEnteredForeground) return
         if (!hasEnteredForeground) {
             // la prima notifica foreground va pubblicata subito all'avvio per evitare timeout Android
             prepareNotification(config, force)?.let { commitPrepared(it, scheduleVerification, initialStart = true) }
@@ -329,6 +360,8 @@ class AtollLiveAlertService : LifecycleService() {
         _displayMetrics.value = prepared.metrics
         _adaptiveResult.value = prepared.solved
         lastCardContent = prepared.cardContent
+        inSideKeyStandby = false
+        _isRunning.value = prepared.config.enabled
 
         if (initialStart || !hasEnteredForeground) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -349,6 +382,34 @@ class AtollLiveAlertService : LifecycleService() {
         }
         updateCardMonitors(prepared.config)
         refreshDiagnostics(this, prepared.config, prepared.metrics, prepared.solved, prepared.notification)
+    }
+
+    private fun enterSideKeyStandby(config: LiveAlertConfig) {
+        if (inSideKeyStandby && hasEnteredForeground) return
+        inSideKeyStandby = true
+        _isRunning.value = false
+        lastAppliedConfig = null
+        lastAppliedMetrics = null
+        lastCardContent = null
+        verificationJob?.cancel()
+        verificationJob = null
+        stopCardMonitors()
+        val notification = LiveAlertNotificationBuilder.buildSideKeyStandby(this)
+        if (!hasEnteredForeground) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            hasEnteredForeground = true
+        } else {
+            notificationManager?.notify(NOTIFICATION_ID, notification)
+        }
+        refreshDiagnostics(this, config)
     }
 
     // batteria e minuti solo quando la scheda li mostra, così il consumo resta quasi zero
@@ -500,6 +561,9 @@ class AtollLiveAlertService : LifecycleService() {
     companion object {
         const val NOTIFICATION_ID = 7001
         private const val ACTION_STOP = "dev.atoll.island.action.STOP_LIVE_ALERT"
+        private const val ACTION_STOP_CAPSULE = "dev.atoll.island.action.STOP_CAPSULE"
+        private const val ACTION_START_SIDEKEY = "dev.atoll.island.action.START_SIDEKEY"
+        private const val ACTION_RECONNECT_SIDEKEY = "dev.atoll.island.action.RECONNECT_SIDEKEY"
         private const val ACTION_START_CALIBRATION = "dev.atoll.island.action.START_CALIBRATION"
         private const val ACTION_STOP_CALIBRATION = "dev.atoll.island.action.STOP_CALIBRATION"
         private const val ACTION_DEBUG_SAMPLE = "dev.atoll.island.action.DEBUG_SAMPLE"
@@ -508,6 +572,9 @@ class AtollLiveAlertService : LifecycleService() {
         private val VERIFICATION_DELAYS_MS = longArrayOf(350L, 1_200L, 9_500L)
         private const val RECHECK_INTERVAL_MS = 30_000L
         private const val FAST_STATS_INTERVAL_MS = 4_000L
+
+        private val _isServiceAlive = MutableStateFlow(false)
+        val isServiceAlive: StateFlow<Boolean> = _isServiceAlive.asStateFlow()
 
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
@@ -528,11 +595,11 @@ class AtollLiveAlertService : LifecycleService() {
             if (_calibrationState.value == CalibrationState.OPEN) return
             _calibrationState.value = CalibrationState.OPENING
             val intent = Intent(context, AtollLiveAlertService::class.java).setAction(ACTION_START_CALIBRATION)
-            if (isRunning.value) context.startService(intent) else context.startForegroundService(intent)
+            if (_isServiceAlive.value) context.startService(intent) else context.startForegroundService(intent)
         }
 
         internal fun stopCalibration(context: Context) {
-            if (!isRunning.value) return
+            if (!_isServiceAlive.value) return
             context.startService(
                 Intent(context, AtollLiveAlertService::class.java).setAction(ACTION_STOP_CALIBRATION)
             )
@@ -556,11 +623,26 @@ class AtollLiveAlertService : LifecycleService() {
 
         fun start(context: Context) {
             val intent = Intent(context, AtollLiveAlertService::class.java)
-            context.startForegroundService(intent)
+            if (_isServiceAlive.value) context.startService(intent) else context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
             context.stopService(Intent(context, AtollLiveAlertService::class.java))
+        }
+
+        fun stopCapsule(context: Context) {
+            if (!_isServiceAlive.value) return
+            context.startService(Intent(context, AtollLiveAlertService::class.java).setAction(ACTION_STOP_CAPSULE))
+        }
+
+        fun startSideKey(context: Context) {
+            val intent = Intent(context, AtollLiveAlertService::class.java).setAction(ACTION_START_SIDEKEY)
+            if (_isServiceAlive.value) context.startService(intent) else context.startForegroundService(intent)
+        }
+
+        fun reconnectSideKey(context: Context) {
+            val intent = Intent(context, AtollLiveAlertService::class.java).setAction(ACTION_RECONNECT_SIDEKEY)
+            if (_isServiceAlive.value) context.startService(intent) else context.startForegroundService(intent)
         }
 
         fun refreshDiagnostics(

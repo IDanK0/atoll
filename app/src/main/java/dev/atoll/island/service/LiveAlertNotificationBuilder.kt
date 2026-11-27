@@ -3,7 +3,9 @@ package dev.atoll.island.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
@@ -25,12 +27,15 @@ import dev.atoll.island.domain.CapsulePaddingGenerator
 import dev.atoll.island.domain.card.CardContent
 import dev.atoll.island.service.card.CardNotificationDecorator
 import dev.atoll.island.service.card.ColorOsCardDecorator
+import dev.atoll.island.ui.MainActivity
 
 object LiveAlertNotificationBuilder {
 
     private const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
     internal const val EXTRA_OPLUS_SMALL_ICON = "oplus_small_icon"
     internal const val EXTRA_OPLUS_SMALL_ICON_USE_APP_ICON = "oplus_smallicon_use_app_icon"
+    internal const val CHANNEL_CUSTOM_ALERT_HIGH = "atoll_custom_alert_sound"
+    internal const val CHANNEL_CUSTOM_ALERT_SILENT = "atoll_custom_alert_silent"
     private const val FLAG_PROMOTED_ONGOING_FALLBACK = 0x00040000
 
     // solo le build debug lo impostano, per provare extras di ColorOS da adb
@@ -74,8 +79,31 @@ object LiveAlertNotificationBuilder {
             enableLights(false)
         }
 
+        val customSoundChannel = NotificationChannel(
+            CHANNEL_CUSTOM_ALERT_HIGH,
+            context.getString(R.string.sidekey_custom_notif_channel_sound),
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = context.getString(R.string.sidekey_custom_notif_channel_desc)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            enableVibration(true)
+        }
+
+        val customSilentChannel = NotificationChannel(
+            CHANNEL_CUSTOM_ALERT_SILENT,
+            context.getString(R.string.sidekey_custom_notif_channel_silent),
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = context.getString(R.string.sidekey_custom_notif_channel_desc)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(null, null)
+            enableVibration(false)
+        }
+
         manager.createNotificationChannel(lowChannel)
         manager.createNotificationChannel(defaultChannel)
+        manager.createNotificationChannel(customSoundChannel)
+        manager.createNotificationChannel(customSilentChannel)
         channelsEnsured = true
     }
 
@@ -110,6 +138,32 @@ object LiveAlertNotificationBuilder {
                 if (config.card.useColorOsLayouts) "ColorOS + $it" else it
             }
         }
+
+    fun buildSideKeyStandby(context: Context): Notification {
+        ensureChannels(context)
+        val openAppIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            901,
+            openAppIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        return NotificationCompat.Builder(context, NotificationChannelMode.LOW.channelId)
+            .setSmallIcon(R.drawable.ic_qs_atoll)
+            .setContentTitle(context.getString(R.string.sidekey_standby_notif_title))
+            .setContentText(context.getString(R.string.sidekey_standby_notif_body))
+            .setContentIntent(contentIntent)
+            .setOngoing(true)
+            .setRequestPromotedOngoing(false)
+            .setShowWhen(false)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+    }
 
     fun build(
         context: Context,

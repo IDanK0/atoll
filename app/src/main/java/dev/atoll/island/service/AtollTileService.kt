@@ -53,10 +53,10 @@ class AtollTileService : TileService() {
         super.onClick()
         val repo = LiveAlertPreferencesRepository.getInstance(applicationContext)
         scope.launch {
-            val currentlyRunning = AtollLiveAlertService.isRunning.value
+            val currentlyRunning = AtollLiveAlertService.isRunning.value || repo.getLatestConfig().enabled
             if (currentlyRunning) {
                 repo.setEnabled(false)
-                AtollLiveAlertService.stop(applicationContext)
+                AtollLiveAlertService.stopCapsule(applicationContext)
                 applyTileState(repo.getLatestConfig().copy(enabled = false), false)
             } else {
                 if (!hasNotificationPermission()) {

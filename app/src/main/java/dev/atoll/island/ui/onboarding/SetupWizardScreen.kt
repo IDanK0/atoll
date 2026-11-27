@@ -180,7 +180,8 @@ fun SetupWizardScreen(
 
                 LinearProgressIndicator(
                     progress = { animatedProgress },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    drawStopIndicator = {}
                 )
 
                 if (launchRequest.isRerun && onDismissRerun != null) {
